@@ -4,6 +4,7 @@ import secrets
 from pathlib import Path
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
 ROOT = Path(__file__).resolve().parent
@@ -29,6 +30,17 @@ async def broadcast(room: str, message: dict, exclude: WebSocket | None = None) 
 
 
 app = FastAPI(title='POSES multiplayer relay')
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        'http://127.0.0.1:3001',
+        'http://localhost:3001',
+        'http://127.0.0.1:8001',
+        'http://localhost:8001',
+    ],
+    allow_methods=['GET', 'POST', 'OPTIONS'],
+    allow_headers=['*'],
+)
 
 
 @app.get('/')
