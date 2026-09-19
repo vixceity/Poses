@@ -2,15 +2,15 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createGame, observe, tick, distance, validateMatrix, type Game } from '../src/engine.ts';
 const pose = (n: number) => Array.from({length:24}, () => [n, 0, 0]);
-test('handoff provides five seconds without recording or spending copying time', () => {
+test('handoff provides three seconds without recording or spending copying time', () => {
   const g=createGame(0);
   for(let i=0;i<3;i++) hold(g,1,i,100+i*2200);
-  assert.equal(g.phase,'ready');assert.equal(g.deadline,11500);
+  assert.equal(g.phase,'ready');assert.equal(g.deadline,9000);
   hold(g,2,0,7000);
   assert.equal(g.index,0);assert.equal(g.holdMs,0);
-  assert.equal(tick(g,11499),false);
-  tick(g,11500);
-  assert.equal(g.phase,'copying');assert.equal(g.deadline,31500);
+  assert.equal(tick(g,8999),false);
+  tick(g,9000);
+  assert.equal(g.phase,'copying');assert.equal(g.deadline,29000);
   assert.deepEqual(g.letters,[0,0]);
   hold(g,2,0,11600);assert.equal(g.index,1);
 });
@@ -25,7 +25,8 @@ test('three poses, ordered copies, then swap roles', () => {
   const g=createGame(0);setThree(g);assert.equal(g.phase,'copying');
   hold(g,2,2,12000);assert.equal(g.index,0); // wrong order cannot advance
   for(let i=0;i<3;i++) hold(g,2,i,14300+i*2200);
-  assert.equal(g.phase,'setting');assert.equal(g.setter,2);assert.equal(g.round,2);
+  assert.equal(g.phase,'handoff');assert.equal(g.setter,2);assert.equal(g.round,2);
+  tick(g,g.deadline);assert.equal(g.phase,'setting');
   assert.deepEqual(g.letters,[0,0]);assert.equal(g.poses.length,0);
 });
 test('two seconds required; missing frames and movement reset hold', () => {
@@ -48,6 +49,7 @@ test('timeout assigns exactly one letter and preserves setter; POSES loses', () 
 test('player one can also earn letters after a role swap', () => {
   const g=createGame(0);setThree(g);
   for(let i=0;i<3;i++)hold(g,2,i,12000+i*2200);
+  tick(g,g.deadline);
   setThree(g,20000);tick(g,g.deadline);
   assert.deepEqual(g.letters,[1,0]);assert.equal(g.setter,2);
 });

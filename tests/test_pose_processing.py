@@ -43,5 +43,5 @@ def test_hidden_joint_and_degenerate_torso_rejected():
 def test_lanes_ignore_detection_order_and_reject_ambiguity():
     left, right = landmarks(), landmarks()
     right[23].x = right[24].x = 0.8
-    assert assign_lanes([right, left]) == {1: 1, 2: 0}
-    assert assign_lanes([left, landmarks(), right]) == {1: None, 2: 2}
+    assert assign_lanes([right, left]) == {1: 0, 2: 1}
+    assert assign_lanes([left, landmarks(), right]) == {1: 2, 2: None}

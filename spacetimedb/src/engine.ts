@@ -1,7 +1,7 @@
 // Pure game rules, executed transactionally by SpacetimeDB reducers.
 export type Matrix = number[][];
 export type Game = {
-  phase: 'setting' | 'ready' | 'copying' | 'finished'; setter: number; round: number;
+  phase: 'setting' | 'ready' | 'handoff' | 'copying' | 'finished'; setter: number; round: number;
   letters: number[]; poses: Matrix[]; index: number; winner: number;
   tolerance: number; timeoutMs: number; deadline: number;
   anchor: Matrix | null; holdSince: number; lastSample: number;
@@ -31,6 +31,10 @@ function nextRound(g: Game, setter: number) {
   g.deadline = 0; g.release = null; g.error = null; clearHold(g);
 }
 export function tick(g: Game, now: number): boolean {
+  if (g.phase === 'handoff' && now >= g.deadline) {
+    g.phase = 'setting'; g.deadline = 0; g.message = `Player ${g.setter}: set three new poses`;
+    return true;
+  }
   if (g.phase === 'ready' && now >= g.deadline) {
     g.phase = 'copying'; g.deadline = now + g.timeoutMs; clearHold(g);
     g.message = `Player ${3 - g.setter}: copy pose 1 of 3 now`;
@@ -63,23 +67,24 @@ export function observe(g: Game, player: number, matrix: Matrix | null, now: num
     g.error = distance(matrix, g.poses[g.index]);
     if (g.error > g.tolerance) { clearHold(g); g.message = `Player ${active}: match target pose ${g.index + 1}`; return; }
   }
-  if (!g.anchor || now - g.lastSample > 600 || distance(matrix, g.anchor) > 0.16) {
+  if (!g.anchor || now - g.lastSample > 1500 || distance(matrix, g.anchor) > 0.8) {
     g.anchor = matrix; g.holdSince = now; g.holdMs = 0;
   }
   g.lastSample = now; g.holdMs = now - g.holdSince;
   g.message = `Player ${active}: hold steady (${(g.holdMs / 1000).toFixed(1)} / 2 seconds)`;
-  if (g.holdMs < 2000) return;
+  if (g.holdMs < 1500) return;
   if (g.phase === 'setting') {
     g.poses.push(g.anchor!); g.release = matrix; clearHold(g);
     if (g.poses.length === 3) {
-      g.phase = 'ready'; g.index = 0; g.release = null; g.deadline = now + 5000;
+      g.phase = 'ready'; g.index = 0; g.release = null; g.deadline = now + 3000;
       g.message = `Three poses saved! Player ${3 - g.setter}: get ready to copy. Player ${g.setter}: wait`;
     } else g.message = `Pose ${g.poses.length} saved. Move, then hold the next pose`;
   } else {
     g.index++; clearHold(g);
     if (g.index === 3) {
-      nextRound(g, active);
-      g.message = `Sequence complete! Player ${active}: set three poses`;
+      g.setter = active; g.round++; g.phase = 'handoff'; g.poses = []; g.index = 0;
+      g.deadline = now + 3000; g.release = null; g.error = null;
+      g.message = `Sequence complete! Player ${active}: get ready to set three new poses`;
     } else {
       g.deadline = now + g.timeoutMs;
       g.message = `Player ${active}: copy pose ${g.index + 1} of 3`;

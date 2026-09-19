@@ -48,7 +48,7 @@ def normalize(world, image):
 def assign_lanes(image_poses):
     """Stable player IDs by screen lane. Ambiguous lanes produce no observation.
 
-    P1 stays in the left half of the unmirrored preview, P2 in the right.
+    P1 stays in the right half of the unmirrored preview, P2 in the left.
     The center dead zone prevents noisy hips from jumping between IDs.
     """
     lanes = {1: [], 2: []}
@@ -57,7 +57,7 @@ def assign_lanes(image_poses):
             continue
         x = (pose[23].x + pose[24].x) / 2
         if x < 0.49:
-            lanes[1].append(index)
-        elif x > 0.51:
             lanes[2].append(index)
+        elif x > 0.51:
+            lanes[1].append(index)
     return {player: indices[0] if len(indices) == 1 else None for player, indices in lanes.items()}

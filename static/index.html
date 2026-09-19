@@ -3,44 +3,50 @@
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>POSES</title>
 <style>
-body{font:17px system-ui;background:#101923;color:#edf4fa;max-width:1150px;margin:30px auto;padding:0 20px}h1{letter-spacing:.2em}button,input{font:inherit;padding:8px;border-radius:6px}button{background:#83e9ab;cursor:pointer}main{display:grid;grid-template-columns:2fr 1fr;gap:20px}img{width:100%;min-height:240px;background:#080d14;border-radius:12px}aside{background:#1c2a39;padding:20px;border-radius:12px}canvas{width:100%;background:#121d28;border-radius:8px}progress{width:100%;height:24px}small{color:#bacbd9}#score{font-size:24px}label{display:inline-block;margin:0 12px 12px 0}input{width:85px}@media(max-width:750px){main{grid-template-columns:1fr}}
+*{box-sizing:border-box}html,body{height:100%;overflow:hidden}body{font:clamp(12px,1.1vw,17px) system-ui;background:#101923;color:#edf4fa;max-width:1800px;height:100vh;margin:0 auto;padding:clamp(8px,1.5vh,22px) 20px;display:flex;flex-direction:column;gap:clamp(4px,1vh,12px)}h1{letter-spacing:.2em;margin:0;font-size:clamp(24px,3vw,44px)}button,input{font:inherit;padding:8px;border-radius:6px}button{background:#83e9ab;cursor:pointer}main{display:grid;grid-template-columns:minmax(0,1fr) minmax(360px,1.15fr) minmax(0,1fr);gap:12px;min-height:0;flex:1}img{width:100%;background:#080d14;border-radius:12px}aside{background:#1c2a39;padding:12px;border-radius:12px;min-height:0}canvas{width:100%;background:#121d28;border-radius:8px}progress{width:100%;height:24px}small{color:#bacbd9}#score{font-size:24px}label{display:inline-block;margin:0 12px 8px 0}input{width:85px}
 
-body{max-width:1800px}main{grid-template-columns:minmax(0,1fr) minmax(360px,.85fr) minmax(0,1fr);align-items:start;gap:20px}
-.team{min-width:0;border:4px solid #435264;border-radius:14px;overflow:hidden;background:#172431;text-align:center}
-.team h2,aside h2{font-size:clamp(24px,3vw,38px);margin:12px 0;text-align:center}.team-score{font-size:.8em;margin-left:12px;white-space:nowrap}
+body{max-width:1800px}main{grid-template-columns:minmax(0,1fr) minmax(360px,1.15fr) minmax(0,1fr);align-items:stretch;gap:12px}
+.team{min-width:0;border:4px solid #435264;border-radius:14px;overflow:hidden;background:#172431;text-align:center;display:flex;flex-direction:column;min-height:0}
+.team h2,aside h2{font-size:clamp(20px,2.4vw,34px);margin:8px 0;text-align:center}.team-score{font-size:.8em;margin-left:12px;white-space:nowrap}
 #team1 h2{color:#83e9ab}#team2 h2{color:#80beff}
 #team1.active{border-color:#83e9ab;box-shadow:0 0 20px #83e9ab55}#team2.active{border-color:#80beff;box-shadow:0 0 20px #80beff55}
 .camera-crop{overflow:hidden;line-height:0}.camera-crop img{display:block;width:200%;max-width:none;min-height:0;border-radius:0}.camera-crop.right img{margin-left:-100%}
-.camera-crop.left img{margin-left:-100%}.camera-crop.right img{margin-left:0}
-.team-role{font-size:clamp(24px,2.8vw,40px);font-weight:800;padding:0 8px}
-aside{text-align:center;padding:20px}#timer{font-size:clamp(56px,7vw,100px);font-weight:900;color:#ffe28a;line-height:1.15;margin:20px 0}
-#score{font-size:clamp(34px,5vw,64px);font-weight:800;text-align:center;margin:28px 0}#count,#hold-label{font-size:clamp(26px,3vw,38px);font-weight:700}progress{height:44px;accent-color:#83e9ab}#message{font-size:clamp(24px,3vw,36px);line-height:1.2}.mirror-control{font-size:17px}.mirror-control input{width:auto}
-#target-photo{display:none;width:100%;max-height:360px;object-fit:contain;border-radius:8px;background:#121d28}
-#ready-start{text-align:center;margin:18px 0;padding:14px 18px;border:2px solid #bacbd9;border-radius:12px;background:#1c2a39}#ready-start strong{display:block;font-size:clamp(22px,3vw,34px)}#ready-start p{margin:6px 0;font-size:clamp(17px,2vw,24px)}#ready-hold{width:100%;height:30px;accent-color:#ffe28a}
+.camera-crop{height:auto;flex:1;min-height:0}.camera-crop img{height:100%;object-fit:cover}.camera-crop.left img{margin-left:-100%}.camera-crop.right img{margin-left:0}
+.team-role{font-size:clamp(18px,2.2vw,32px);font-weight:800;padding:0 8px;margin:8px 0}
+aside{text-align:center;padding:8px;overflow:hidden}#timer{font-size:clamp(34px,4vw,64px);font-weight:900;color:#ffe28a;line-height:1;margin:4px 0}
+#score{font-size:clamp(28px,4vw,52px);font-weight:800;text-align:center;margin:18px 0}#count,#hold-label{font-size:clamp(15px,1.8vw,24px);font-weight:700}progress{height:24px;accent-color:#83e9ab}#message{font-size:clamp(14px,1.7vw,23px);line-height:1.05;margin:5px 0}.mirror-control{font-size:12px}.mirror-control input{width:auto}
+#target{height:clamp(160px,30vh,260px);object-fit:contain}
+#ready-start{text-align:center;margin:6px 0;padding:8px 12px;border:2px solid #bacbd9;border-radius:12px;background:#1c2a39}#ready-start strong{display:block;font-size:clamp(17px,2.2vw,28px)}#ready-start p{margin:4px 0;font-size:clamp(13px,1.5vw,20px)}#ready-hold{width:100%;height:24px;accent-color:#ffe28a}
+#round,#visible,small,details{display:none}#status{margin:0;font-size:clamp(12px,1.2vw,16px)}#start{white-space:nowrap}
+#instructions{margin:0;font-size:13px}body{padding-top:6px;padding-bottom:6px;gap:3px}h1{font-size:28px;line-height:1;margin:0}
+#turn{margin:0;padding:6px 12px}#turn-title{font-size:30px}#turn-action{font-size:15px}#turn-countdown{font-size:42px}
+#ready-start{margin:2px 0;padding:5px 10px}#ready-start strong{font-size:20px}#ready-start p{font-size:13px;margin:2px 0}#ready-hold{height:18px}
+#start{font-size:13px;line-height:1}#start label{margin-bottom:2px}#start input{padding:4px}#start button{padding:5px 8px}
 @media(max-width:850px){main{grid-template-columns:1fr 1fr}main aside{grid-column:1/-1;grid-row:1}#target{max-width:320px;display:block;margin:auto}}
 </style>
 <style>
-#turn{margin:20px 0;padding:22px 28px;border:3px solid #bacbd9;border-radius:14px;background:#1c2a39;text-align:center}
+#turn{margin:4px 0;padding:10px 18px;border:3px solid #bacbd9;border-radius:14px;background:#1c2a39;text-align:center}
 #turn[data-player="1"]{border-color:#83e9ab;background:#15382c}
 #turn[data-player="2"]{border-color:#80beff;background:#183452}
-#turn-title{display:block;font-size:clamp(30px,5vw,58px);font-weight:850;line-height:1.15}
-#turn-action{margin:10px 0 0;font-size:clamp(18px,2.5vw,26px)}
-#turn-countdown{font-size:clamp(48px,8vw,90px);font-weight:900;color:#ffe28a}
+#turn-title{display:block;font-size:clamp(24px,4vw,48px);font-weight:850;line-height:1.05}
+#turn-action{margin:4px 0 0;font-size:clamp(14px,1.8vw,22px)}
+#turn-countdown{font-size:clamp(36px,6vw,72px);font-weight:900;color:#ffe28a}
+#turn{margin:0;padding:6px 12px}#turn-title{font-size:30px}#turn-action{font-size:15px;margin:2px 0 0}#turn-countdown{font-size:42px}
 </style>
-<h1>POSES</h1>
+<h1>POSES <span id="title-score">P1 — · P2 —</span></h1>
 <div id="turn" role="status" aria-live="polite" aria-atomic="true">
 <strong id="turn-title">Ready to play?</strong>
 <p id="turn-action">Start a game. Both players can stand in the frame together.</p>
 <div id="turn-countdown" aria-live="off"></div>
 </div>
-<p>Player 1 stays on the left of this preview; Player 2 stays on the right. Keep your entire body visible, stay apart, and face the camera.</p>
+<p id="instructions">Player 1 stays left; Player 2 stays right. Keep your full body visible.</p>
 <div id="ready-start"><strong>Raise both right hands to start</strong><p id="ready-status">Both players: hold your right hand above your shoulder for 2 seconds.</p><progress id="ready-hold" max="2000" value="0"></progress></div>
 <form id="start"><label>Match tolerance <input id="tolerance" type="number" value="0.25" min="0.05" max="0.8" step="0.05"></label><label>Seconds per copy <input id="timeout" type="number" value="20" min="5" max="120"></label><button>Start new game</button></form>
 <p id="status" role="status">Connecting…</p>
 <main>
-<section class="team" id="team1"><h2>TEAM 1 <span class="team-score" id="score1">—</span></h2><div class="camera-crop left"><img src="/camera.mjpg" alt="Team 1 mirrored camera, left half"></div><p class="team-role" id="role1">Waiting</p></section>
-<aside><h2>TARGET POSE</h2><img id="target-photo" alt="Saved target pose photo"><canvas id="target" width="320" height="360"></canvas><label class="mirror-control"><input id="mirror-target" type="checkbox" checked> Flip target left/right</label><div id="timer" role="timer"></div><p id="count"></p><label for="hold" id="hold-label">Hold steady for 2 seconds</label><progress id="hold" max="2000" value="0"></progress><p id="message">Start a game to begin.</p><p id="error"></p></aside>
-<section class="team" id="team2"><h2>TEAM 2 <span class="team-score" id="score2">—</span></h2><div class="camera-crop right"><img src="/camera.mjpg" alt="Team 2 mirrored camera, right half"></div><p class="team-role" id="role2">Waiting</p></section>
+<section class="team" id="team1"><h2>TEAM 1 <span class="team-score" id="score1">—</span></h2><div class="camera-crop right"><img src="/camera.mjpg" alt="Team 1 mirrored camera, right half"></div><p class="team-role" id="role1">Waiting</p></section>
+<aside><h2>TARGET POSE</h2><canvas id="target" width="320" height="360"></canvas><label class="mirror-control"><input id="mirror-target" type="checkbox" checked> Flip target left/right</label><div id="timer" role="timer"></div><p id="count"></p><label for="hold" id="hold-label">Hold steady for 2 seconds</label><progress id="hold" max="2000" value="0"></progress><p id="message">Start a game to begin.</p><p id="error"></p></aside>
+<section class="team" id="team2"><h2>TEAM 2 <span class="team-score" id="score2">—</span></h2><div class="camera-crop left"><img src="/camera.mjpg" alt="Team 2 mirrored camera, left half"></div><p class="team-role" id="role2">Waiting</p></section>
 </main>
 <p id="round"></p><p id="visible"></p>
 <small>Two views of the same webcam. Stay in your original lane. Use Flip target left/right if its orientation does not match your camera.</small>
@@ -48,25 +54,15 @@ aside{text-align:center;padding:20px}#timer{font-size:clamp(56px,7vw,100px);font
 <script>
 const $=id=>document.getElementById(id);
 const edges=[[0,1],[0,2],[2,4],[1,3],[3,5],[0,6],[1,7],[6,7],[6,8],[8,10],[7,9],[9,11]];
-let previousPoseCount=0;
 let gameStartRequested=false;
-function captureTargetPhoto(player){
- const source=$('#team'+player+' img');
- if(!source.naturalWidth||!source.naturalHeight)return;
- const canvas=document.createElement('canvas');canvas.width=320;canvas.height=360;
- const context=canvas.getContext('2d');
- const sourceWidth=source.naturalWidth/2;
- const sourceX=player===1?sourceWidth:0;
- context.drawImage(source,sourceX,0,sourceWidth,source.naturalHeight,0,0,canvas.width,canvas.height);
- $('#target-photo').src=canvas.toDataURL('image/jpeg',.88);
- $('#target-photo').style.display='block';
-}
+let startCountdownTimer=null;
+let startCountdown=0;
 function showTurn(g){
- const player=g?(g.phase==='finished'?g.winner:g.phase==='setting'?g.setter:3-g.setter):'';
+ const player=g?(g.phase==='finished'?g.winner:['setting','handoff'].includes(g.phase)?g.setter:3-g.setter):'';
  const title=!g?'Ready to play?':g.phase==='finished'?`PLAYER ${player} WINS!`:
-   `PLAYER ${player}: ${g.phase==='ready'?'GET READY':g.phase==='setting'?'MAKE A POSE':'COPY THE POSE'}`;
+  `PLAYER ${player}: ${g.phase==='ready'?'GET READY':g.phase==='handoff'?'GET READY TO SET':g.phase==='setting'?'MAKE A POSE':'COPY THE POSE'}`;
  const action=!g?'Start a game. Both players can stand in the frame together.':g.phase==='finished'?'Game over. Start a new game to play again.':
-   g.phase==='ready'?`Player ${g.setter}: your poses are saved — wait. Player ${player}: look at the target and get into position.`:
+  ['ready','handoff'].includes(g.phase)?(g.phase==='ready'?`Player ${g.setter}: your poses are saved — wait. Player ${player}: look at the target and get into position.`:`Player ${player}: new poses begin after the countdown.`):
    `POSE ${g.phase==='setting'?g.poses.length+1:g.index+1} OF 3 · ${player===1?'LEFT':'RIGHT'} SIDE · Hold for 2 seconds. Player ${3-player}: wait.`;
  // Avoid repeated screen-reader announcements on every state poll.
  if($('turn-title').textContent!==title)$('turn-title').textContent=title;
@@ -75,7 +71,7 @@ function showTurn(g){
  for(const n of [1,2]){
   const isActive=!!g&&g.phase!=='finished'&&n===player;
   $('team'+n).classList.toggle('active',isActive);
-  $('role'+n).textContent=!g?'Waiting':g.phase==='finished'?(n===g.winner?'WINNER':'GAME OVER'):isActive?(g.phase==='ready'?'GET READY':g.phase==='setting'?'MAKE A POSE':'COPY THE TARGET'):'WAIT ? WATCH THE OTHER TEAM';
+  $('role'+n).textContent=!g?'Waiting':g.phase==='finished'?(n===g.winner?'WINNER':'GAME OVER'):isActive?(g.phase==='ready'?'GET READY':g.phase==='handoff'?'GET READY TO SET':g.phase==='setting'?'MAKE A POSE':'COPY THE TARGET'):'WAIT ? WATCH THE OTHER TEAM';
  }
 }
 function draw(matrix){
@@ -89,9 +85,23 @@ function draw(matrix){
  for(const[a,b]of edges){c.beginPath();c.moveTo(...p[a]);c.lineTo(...p[b]);c.stroke();}
  c.fillStyle='#fff';for(const[x,y]of p){c.beginPath();c.arc(x,y,5,0,Math.PI*2);c.fill();}
 }
-$('start').onsubmit=async e=>{e.preventDefault();const button=e.target.querySelector('button');button.disabled=true;
- try{const r=await fetch('/api/games',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tolerance:Number($('tolerance').value),timeout_seconds:Number($('timeout').value)})});if(!r.ok)throw Error((await r.json()).detail);}
- catch(e){$('status').textContent=e.message;gameStartRequested=false;}finally{button.disabled=false;}};
+ async function createGame(){
+  const button=$('start').querySelector('button');
+  try{const r=await fetch('/api/games',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tolerance:Number($('tolerance').value),timeout_seconds:Number($('timeout').value)})});if(!r.ok)throw Error((await r.json()).detail);}
+  catch(e){$('status').textContent=e.message;gameStartRequested=false;}
+  finally{button.disabled=false;startCountdown=0;$('ready-status').textContent='Game starting';}
+ }
+ function beginStartCountdown(){
+  if(startCountdownTimer||gameStartRequested)return;
+  gameStartRequested=true;startCountdown=3;$('start').querySelector('button').disabled=true;
+  $('ready-status').textContent=`Game starts in ${startCountdown}…`;
+  startCountdownTimer=setInterval(()=>{
+   startCountdown--;
+   if(startCountdown<=0){clearInterval(startCountdownTimer);startCountdownTimer=null;createGame();}
+   else $('ready-status').textContent=`Game starts in ${startCountdown}…`;
+  },1000);
+ }
+ $('start').onsubmit=e=>{e.preventDefault();beginStartCountdown();};
 async function poll(){try{
  const response=await fetch('/api/state');if(!response.ok)throw Error('Camera service unavailable');const s=await response.json();
  const gameActive=s.game&&s.game.phase!=='finished';
@@ -99,19 +109,17 @@ async function poll(){try{
  const canStart=!gameActive;
  $('ready-hold').value=canStart?s.ready_hold_ms:0;
  $('ready-status').textContent=!canStart?'Game in progress':s.ready_players.length===2?`Both right hands detected — hold ${(s.ready_hold_ms/1000).toFixed(1)} / 2.0 seconds`:`Raise both right hands (${s.ready_players.length}/2 detected)`;
- if(canStart&&s.ready_hold_ms>=2000&&!gameStartRequested){gameStartRequested=true;$('start').requestSubmit();}
+ if(canStart&&s.ready_hold_ms>=2000&&!gameStartRequested)beginStartCountdown();
  showTurn(s.game);
- $('turn-countdown').textContent=s.game?.phase==='ready'?`Copying starts in ${Math.max(0,Math.ceil((s.game.deadline-s.now)/1000))}…`:'';
+ $('turn-countdown').textContent=['ready','handoff'].includes(s.game?.phase)?`${s.game.phase==='handoff'?'New poses start':'Copying starts'} in ${Math.max(0,Math.ceil((s.game.deadline-s.now)/1000))}…`:'';
  $('status').textContent=s.status;$('visible').textContent='Full-body tracking: '+(s.visible_players.map(p=>'Player '+p).join(', ')||'No valid players');
- const g=s.game;if(g){$('score1').textContent='POSES'.slice(0,g.letters[0])||'—';$('score2').textContent='POSES'.slice(0,g.letters[1])||'—';
- if(g.phase==='setting'&&g.poses.length>previousPoseCount)captureTargetPhoto(g.setter);
- previousPoseCount=g.phase==='setting'?g.poses.length:0;
- const active=g.phase==='setting'?g.setter:3-g.setter;
+ const g=s.game;if(g){const score1='POSES'.slice(0,g.letters[0])||'—';const score2='POSES'.slice(0,g.letters[1])||'—';$('score1').textContent=score1;$('score2').textContent=score2;$('title-score').textContent=`P1 ${score1} · P2 ${score2}`;
+ const active=['setting','handoff'].includes(g.phase)?g.setter:3-g.setter;
  if(g.phase!=='finished')$('visible').textContent+=` · Player ${active}: ${s.tracking?.[active]||'Waiting for camera'}`;
  $('round').textContent=`Round ${g.round} · ${g.phase}`;$('message').textContent=g.message;
  $('count').textContent=g.phase==='setting'?`${g.poses.length}/3 poses saved`:g.phase==='copying'?`${g.index}/3 poses copied`:'';
  $('hold').value=g.holdMs;$('hold-label').textContent=`HOLD: ${(g.holdMs/1000).toFixed(1)} / 2.0 seconds`;
- $('timer').textContent=['ready','copying'].includes(g.phase)?`${Math.max(0,Math.ceil((g.deadline-s.now)/1000))}s ${g.phase==='ready'?'GET READY':'LEFT'}`:g.phase==='setting'?'MAKE A POSE':'GAME OVER';
+ $('timer').textContent=['ready','handoff','copying'].includes(g.phase)?`${Math.max(0,Math.ceil((g.deadline-s.now)/1000))}s ${g.phase==='copying'?'LEFT':'GET READY'}`:g.phase==='setting'?'MAKE A POSE':'GAME OVER';
  const target=['ready','copying'].includes(g.phase)?g.poses[g.index]:null;draw(target);$('matrix').textContent=target?JSON.stringify(target.map(r=>r.map(v=>+v.toFixed(3))),null,1):'';
  $('error').textContent=g.phase==='ready'?'Get into position. Recording starts after the countdown.':g.error===null?'Hold steady for 2 seconds':`Pose error: ${g.error.toFixed(3)} / ${g.tolerance.toFixed(3)} allowed`;
  }
