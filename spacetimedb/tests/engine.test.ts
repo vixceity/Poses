@@ -2,6 +2,28 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createGame, observe, tick, distance, validateMatrix, type Game } from '../src/engine.ts';
 const pose = (n: number) => Array.from({length:24}, () => [n, 0, 0]);
+test('handoff ignores valid frames from both players', () => {
+  const g=createGame(0);
+  tick(g,g.deadline);
+  const expected=structuredClone(g);
+  observe(g,1,pose(0),20500);observe(g,2,pose(1),20600);
+  assert.deepEqual(g,expected);
+});
+test('both players can lose at exactly five failed sequences', () => {
+  for (const setter of [1,2]) {
+    const g=createGame(0);g.setter=setter;
+    let start=100;
+    for(let miss=1;miss<=5;miss++) {
+      setThree(g,start);const deadline=g.deadline;tick(g,deadline);
+      assert.equal(g.letters[2-setter],miss);
+      assert.equal(g.letters[setter-1],0);
+      assert.equal(g.phase,miss===5?'finished':'setting');
+      start=deadline+100;
+    }
+    assert.equal(g.winner,setter);
+    tick(g,g.deadline+100000);assert.equal(g.letters[2-setter],5);
+  }
+});
 test('handoff provides three seconds without recording or spending copying time', () => {
   const g=createGame(0);
   for(let i=0;i<3;i++) hold(g,1,i,100+i*2200);
@@ -36,6 +58,16 @@ test('two seconds required; missing frames and movement reset hold', () => {
   hold(g,1,0,4500);assert.equal(g.poses.length,1); // must release
   observe(g,1,pose(1),6800);observe(g,1,pose(2),6900);
   assert.equal(g.holdMs,0);
+});
+test('movement at the end of a setter hold restarts the full hold', () => {
+  const g=createGame(0);
+  for(let t=100;t<=2000;t+=100) observe(g,1,pose(0),t);
+  observe(g,1,pose(.2),2100);
+  assert.equal(g.poses.length,0);assert.equal(g.holdMs,0);
+  for(let t=2200;t<=4000;t+=100) observe(g,1,pose(.2),t);
+  assert.equal(g.poses.length,0);
+  observe(g,1,pose(.2),4100);assert.equal(g.poses.length,1);
+  assert.deepEqual(g.poses[0],pose(.2));
 });
 test('timeout assigns exactly one letter and preserves setter; POSES loses', () => {
   const g=createGame(0);

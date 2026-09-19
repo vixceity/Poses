@@ -10,10 +10,12 @@ import time
 import uuid
 
 import cv2
+import numpy as np
 import mediapipe as mp
 from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, Response, StreamingResponse
 from pydantic import BaseModel, Field
 
@@ -37,19 +39,39 @@ class CameraHost:
         self.ready_hold_ms = 0
         self.ready_players = []
         self.ready_since = None
+        self.ready_armed = True
+        self.ready_latched = False
+        self.pose_photos = {}
         self.thread = threading.Thread(target=self.run, daemon=True)
 
     def start_game(self, tolerance, timeout):
         with self.lock:
+            if not self.ready_armed or not self.ready_latched:
+                raise ValueError('Both players must hold up a hand for two seconds.')
             game_id = uuid.uuid4().hex
             self.db.connect()
             self.db.call('create_game', game_id, tolerance, timeout)
             self.game_id = game_id
             self.state = self.db.state(game_id)
+            self.pose_photos = {}
             self.ready_hold_ms = 0
             self.ready_players = []
             self.ready_since = None
+            self.ready_armed = False
+            self.ready_latched = False
             return game_id
+
+    def reset_game(self):
+        with self.lock:
+            self.game_id = None
+            self.state = None
+            self.pose_photos = {}
+            self.ready_players = []
+            self.ready_hold_ms = 0
+            self.ready_since = None
+            # Require a camera-observed release before accepting another hold.
+            self.ready_armed = False
+            self.ready_latched = False
 
     def update_ready_gesture(self, landmarks, lanes, now):
         players = []
@@ -67,10 +89,17 @@ class CameraHost:
         if len(players) != 2:
             self.ready_since = None
             self.ready_hold_ms = 0
+            self.ready_armed = True
+            return
+        if not self.ready_armed:
+            self.ready_since = None
+            self.ready_hold_ms = 0
             return
         if self.ready_since is None:
             self.ready_since = now
         self.ready_hold_ms = min(2000, now - self.ready_since)
+        if self.ready_hold_ms >= 2000:
+            self.ready_latched = True
 
     def run(self):
         capture = None
@@ -83,13 +112,19 @@ class CameraHost:
                 base_options=python.BaseOptions(model_asset_path=str(model)),
                 running_mode=vision.RunningMode.VIDEO, num_poses=4,
                 min_pose_detection_confidence=0.6, min_tracking_confidence=0.6))
-            camera_index = int(os.getenv('CAMERA_INDEX', '0'))
+            requested_index = os.getenv('CAMERA_INDEX')
+            camera_indices = [int(requested_index)] if requested_index is not None else [1, 0]
             backend = cv2.CAP_DSHOW if os.name == 'nt' else cv2.CAP_ANY
-            capture = cv2.VideoCapture(camera_index, backend)
-            if not capture.isOpened() and backend != cv2.CAP_ANY:
-                capture.release()
-                capture = cv2.VideoCapture(camera_index)
-            if not capture.isOpened():
+            for camera_index in camera_indices:
+                candidate = cv2.VideoCapture(camera_index, backend)
+                if not candidate.isOpened() and backend != cv2.CAP_ANY:
+                    candidate.release()
+                    candidate = cv2.VideoCapture(camera_index)
+                if candidate.isOpened():
+                    capture = candidate
+                    break
+                candidate.release()
+            if capture is None or not capture.isOpened():
                 raise RuntimeError('Cannot open camera. Check CAMERA_INDEX and camera permissions.')
             last_timestamp = 0
             while not self.stop.is_set():
@@ -147,6 +182,9 @@ class CameraHost:
                 self.status = str(exc)
                 self.jpeg = None
                 self.visible = []
+                self.ready_players = []
+                self.ready_since = None
+                self.ready_hold_ms = 0
             # Still enforce game deadlines if detection fails permanently.
             while not self.stop.wait(0.25):
                 with self.lock:
@@ -164,13 +202,31 @@ class CameraHost:
             # Read first to recover correctly after a lost HTTP response.
             self.db.call('heartbeat', self.game_id)
             self.state = self.db.state(self.game_id)
-            if self.state['phase'] != 'finished':
+            if self.state['phase'] in ('setting', 'copying'):
+                before = self.state
                 player = self.state['setter'] if self.state['phase'] == 'setting' else 3 - self.state['setter']
                 self.db.call('submit_frame', self.game_id, player, json.dumps(matrices[player]))
                 self.state = self.db.state(self.game_id)
+                self.capture_saved_pose(before, self.state)
         except Exception:
             log.exception('SpacetimeDB request failed')
             self.status = 'SpacetimeDB unavailable; check server, database name and token'
+
+    def capture_saved_pose(self, before, after):
+        if (not self.jpeg or before['phase'] != 'setting'
+                or before['round'] != after['round']
+                or len(after['poses']) != len(before['poses']) + 1):
+            return
+        frame = cv2.imdecode(np.frombuffer(self.jpeg, np.uint8), cv2.IMREAD_COLOR)
+        if frame is None:
+            return
+        # The preview is already mirrored: P1 occupies its left half.
+        half = frame.shape[1] // 2
+        crop = frame[:, :half] if before['setter'] == 1 else frame[:, half:]
+        crop = cv2.resize(crop, (320, max(1, round(crop.shape[0] * 320 / crop.shape[1]))))
+        ok, encoded = cv2.imencode('.jpg', crop, [cv2.IMWRITE_JPEG_QUALITY, 85])
+        if ok:
+            self.pose_photos[(after['round'], len(after['poses']) - 1)] = encoded.tobytes()
 
 
 host = CameraHost()
@@ -187,11 +243,20 @@ async def lifespan(app):
 
 
 app = FastAPI(title='POSES camera host', lifespan=lifespan)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        'http://127.0.0.1:3001',
+        'http://localhost:3001',
+    ],
+    allow_methods=['GET', 'POST'],
+    allow_headers=['Content-Type'],
+)
 
 
 class GameOptions(BaseModel):
     tolerance: float = Field(default=0.25, ge=0.05, le=0.8)
-    timeout_seconds: int = Field(default=20, ge=20, le=20)
+    timeout_seconds: int = Field(default=20, ge=5, le=120)
 
 
 @app.get('/')
@@ -213,17 +278,38 @@ def local_index():
 def new_game(options: GameOptions):
     try:
         return {'id': host.start_game(options.tolerance, options.timeout_seconds)}
+    except ValueError as exc:
+        raise HTTPException(409, str(exc)) from exc
     except Exception as exc:
         log.exception('Could not create game')
         raise HTTPException(503, 'Could not create game. Check SpacetimeDB and the server log.') from exc
+
+
+@app.post('/api/games/reset')
+def reset_game():
+    host.reset_game()
+    return {'ok': True}
 
 
 @app.get('/api/state')
 def state():
     with host.lock:
         return {'id': host.game_id, 'game': host.state, 'status': host.status,
+                'camera_ready': host.jpeg is not None,
+                'pose_photos': [{'round': r, 'index': i,
+                                 'url': f'/api/games/{host.game_id}/photos/{r}/{i}'}
+                                for r, i in host.pose_photos],
                 'visible_players': host.visible, 'ready_players': host.ready_players,
                 'ready_hold_ms': host.ready_hold_ms, 'now': int(time.time() * 1000)}
+
+
+@app.get('/api/games/{game_id}/photos/{round_number}/{pose_index}')
+def pose_photo(game_id: str, round_number: int, pose_index: int):
+    with host.lock:
+        photo = host.pose_photos.get((round_number, pose_index)) if game_id == host.game_id else None
+    if photo is None:
+        raise HTTPException(404, 'Pose photo unavailable')
+    return Response(content=photo, media_type='image/jpeg', headers={'Cache-Control': 'no-store'})
 
 
 @app.get('/camera.mjpg')
