@@ -8,6 +8,7 @@ export type Game = {
   release: Matrix | null; holdMs: number; error: number | null; message: string;
 };
 export const ROWS = 24; // 12 joints followed by 12 limb vectors; xyz columns.
+export const HOLD_STABILITY_TOLERANCE = 0.15;
 export function validateMatrix(m: Matrix) {
   if (!Array.isArray(m) || m.length !== ROWS || m.some(r => !Array.isArray(r) ||
       r.length !== 3 || r.some(v => typeof v !== 'number' || !Number.isFinite(v) || Math.abs(v) > 20)))
@@ -60,7 +61,7 @@ export function tick(g: Game, now: number): boolean {
 }
 export function observe(g: Game, player: number, matrix: Matrix | null, now: number) {
   // A late observation must never become the first pose of the next round.
-  if (tick(g, now) || g.phase === 'finished' || g.phase === 'ready') return;
+  if (tick(g, now) || g.phase === 'finished' || g.phase === 'ready' || g.phase === 'handoff') return;
   const active = g.phase === 'setting' ? g.setter : 3 - g.setter;
   if (player !== active) return;
   if (matrix === null) { clearHold(g); g.error = null; g.message = `Player ${active}: full-body tracking needed`; return; }
@@ -73,7 +74,7 @@ export function observe(g: Game, player: number, matrix: Matrix | null, now: num
     g.error = distance(matrix, g.poses[g.index]);
     if (g.error > g.tolerance) { clearHold(g); g.message = `Player ${active}: match target pose ${g.index + 1}`; return; }
   }
-  if (!g.anchor || now - g.lastSample > 1500 || distance(matrix, g.anchor) > 0.8) {
+  if (!g.anchor || now - g.lastSample > 1500 || distance(matrix, g.anchor) > HOLD_STABILITY_TOLERANCE) {
     g.anchor = matrix; g.holdSince = now; g.holdMs = 0;
   }
   g.lastSample = now; g.holdMs = now - g.holdSince;

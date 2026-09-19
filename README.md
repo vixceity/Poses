@@ -34,6 +34,34 @@ spacetime publish --server local --module-path spacetimedb poses
 
 Open **http://127.0.0.1:8000** and click **Start new game**. The camera belongs to the computer running FastAPI, not the browser. Run a single server process without reload or multiple workers so it owns the webcam exclusively. API docs are at `/docs`.
 
+### Redesigned game screen
+
+The connected Next.js prototype lives in `C:\Users\ilove\Downloads\poses-game-ui-redesign`. With the FastAPI camera host still running, start it in another terminal:
+
+```powershell
+Set-Location C:\Users\ilove\Downloads\poses-game-ui-redesign
+npm.cmd install
+npm.cmd run dev
+```
+
+Open **http://127.0.0.1:3001**. Port 3000 remains available for SpacetimeDB. The redesigned screen reads the real game state and camera feed from port 8000. Its two POSES rails are driven by the backend letter totals, so each missed copying sequence lights the next letter for the player who missed it.
+
+The main menu's **Local** button opens this redesigned screen. Use the home button in the game header to return to the main menu.
+
+The redesigned screen supports the two-player hand-raise start (hold for two seconds),
+a three-second start countdown, setting/copying deadlines, saved pose photos with a
+skeleton toggle, matching-error feedback, POSES penalties, and a pausable match replay.
+Photos are captured by the camera host on confirmed saves, including the third pose,
+and kept in host memory until a new game or server restart. Reloading the UI during
+the same game restores the saved photos. The copying timer covers the entire sequence.
+
+With the UI running, its automated browser checks use Microsoft Edge:
+
+```powershell
+npm.cmd run check
+npm.cmd test
+```
+
 The home page also offers **Online game**. Start the multiplayer relay in a second terminal:
 
 ```powershell
@@ -47,7 +75,7 @@ The SpacetimeDB module is prepared for the online migration with public `lobby` 
 ## Playing
 
 1. Player 1 stands in the left half of the unmirrored preview, Player 2 in the right. Keep full bodies visible and remain in your lanes. A center dead zone and ambiguous-lane rejection prevent uncertain observations from being scored. Additional detected people in a player's lane invalidate that lane until they leave.
-2. Player 1 holds still for two seconds to save each of three poses. Move to a different pose between captures. Setting has no time limit.
+2. Player 1 holds still for two seconds to save each of three poses. Move to a different pose between captures. The setter has 20 seconds for all three poses; expiry hands setting to the other player after a three-second countdown without awarding a letter.
 3. A three-second get-ready countdown shows the first target without recording or using copying time. Then Player 2 copies the three poses **in order**, holding each for two seconds within the tolerance. The target skeleton and matrix appear beside the camera. The copying sequence has a 20-second deadline by default. Wrong poses can be retried until that deadline.
 4. Copying all three swaps the setter role. Missing any deadline adds one letter to the copier, discards the sequence, and lets the same setter record three new poses.
 5. The first player to accumulate **POSES** loses. Start a new game to play again; prior game rows remain stored in SpacetimeDB.
