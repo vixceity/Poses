@@ -1,11 +1,57 @@
 <!doctype html>
 <html lang="en">
+<head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>POSES | Choose a mode</title>
+<title>POSES</title>
 <style>
-*{box-sizing:border-box}html,body{margin:0;min-height:100%;font-family:system-ui,sans-serif;background:#101923;color:#edf4fa}body{display:grid;place-items:center;padding:24px}.shell{width:min(920px,100%)}h1{font-size:clamp(42px,8vw,84px);letter-spacing:.18em;margin:0 0 8px;color:#83e9ab}p{color:#bacbd9}.modes{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;margin-top:30px}.mode{display:flex;flex-direction:column;align-items:flex-start;min-height:240px;padding:26px;border:2px solid #435264;border-radius:14px;background:#1c2a39;color:#edf4fa;text-decoration:none;transition:border-color .2s,transform .2s}.mode:hover{border-color:#83e9ab;transform:translateY(-3px)}.mode h2{margin:0 0 10px;font-size:30px}.mode span{margin-top:auto;padding:10px 16px;border-radius:7px;background:#83e9ab;color:#101923;font-weight:700}.online span{background:#80beff}@media(max-width:650px){.modes{grid-template-columns:1fr}}
+@import url('https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:wght@400;600&family=Protest+Guerrilla&display=swap');
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%;overflow:hidden}
+body{min-height:100vh;background:#061a30;color:#fff;font-family:Inter,Arial,sans-serif}
+.scene{position:relative;display:flex;min-height:100vh;align-items:center;justify-content:center;overflow:hidden;background:linear-gradient(135deg,#0a2540,#0d3a68 52%,#061a30)}
+.scene:before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 50% 35%,rgba(95,200,235,.32),transparent 45%),linear-gradient(90deg,rgba(6,26,48,.9),rgba(6,26,48,.4) 45%,rgba(6,26,48,.6));}
+.silhouette{position:absolute;left:50%;bottom:3%;width:min(48vw,520px);height:88%;transform:translateX(-50%);opacity:.4;background:radial-gradient(ellipse at center 30%,rgba(95,200,235,.45),transparent 62%);clip-path:polygon(47% 0,58% 0,63% 10%,60% 18%,70% 24%,82% 42%,75% 48%,68% 35%,65% 100%,54% 100%,51% 58%,48% 58%,45% 100%,34% 100%,38% 35%,25% 48%,18% 42%,30% 24%,40% 18%,37% 10%,42% 0)}
+.tracking{position:absolute;inset:12% 33% 10%;border:1px solid rgba(95,200,235,.65);border-radius:8px}
+.tracking:before{content:'PLAYER 01 - TRACKING';position:absolute;top:-25px;left:0;padding:4px 8px;background:rgba(95,200,235,.15);color:#5fc8eb;font:600 10px monospace;letter-spacing:.14em}
+.tracking:after{content:'';position:absolute;left:50%;top:0;width:1px;height:100%;background:rgba(95,200,235,.45);box-shadow:0 0 0 1px rgba(95,200,235,.1)}
+.hud{position:absolute;inset:24px;color:rgba(95,200,235,.6);pointer-events:none}
+.hud:before,.hud:after{content:'';position:absolute;width:32px;height:32px;border-color:currentColor;border-style:solid}
+.hud:before{left:0;top:0;border-width:2px 0 0 2px}.hud:after{right:0;bottom:0;border-width:0 2px 2px 0}
+.rec{position:absolute;right:24px;top:24px;z-index:2;color:#5fc8eb;font:600 11px monospace;letter-spacing:.16em}.rec b{display:inline-block;width:10px;height:10px;margin-right:8px;border-radius:50%;background:#d62828}
+.skeleton{position:absolute;inset:0;width:100%;height:100%;z-index:1}.skeleton line{stroke:#5fc8eb;stroke-width:.4;stroke-opacity:.7;vector-effect:non-scaling-stroke}.skeleton circle{fill:#efd31e;animation:pulse-dot 1.6s ease-in-out infinite}.scan{position:absolute;inset:0;z-index:2;overflow:hidden;pointer-events:none}.scan:after{content:'';position:absolute;inset-inline:0;height:6rem;background:linear-gradient(transparent,rgba(95,200,235,.15),transparent);animation:scan 6s linear infinite}
+.menu{position:relative;z-index:3;display:flex;width:100%;max-width:30rem;flex-direction:column;align-items:center;gap:40px;padding:40px 32px;animation:slide-in-left .6s cubic-bezier(.22,1,.36,1) both}
+.logo-wrap{position:relative;display:inline-block;align-self:center;margin-bottom:-8px;animation:float 5s ease-in-out infinite}.logo-wrap:before,.logo-wrap:after{content:'';position:absolute;border-radius:45%;z-index:-1}.logo-wrap:before{left:-24px;top:-16px;width:80px;height:80px;background:#5fc8ebb3;transform:rotate(18deg)}.logo-wrap:after{right:-32px;top:24px;width:64px;height:64px;background:#d62828b3;transform:rotate(-20deg)}
+.logo{display:block;width:min(34vw,30rem);min-width:16rem;filter:drop-shadow(6px 6px 0 rgba(15,15,15,.55)) drop-shadow(0 0 30px rgba(95,200,235,.5));transform:rotate(-4deg)}
+nav{display:flex;width:100%;flex-direction:column;gap:20px}.button{position:relative;display:flex;align-items:center;gap:16px;width:100%;padding:16px 24px;border:3px solid #0f0f0f;border-radius:16px;background:#efd31e;color:#0f0f0f;box-shadow:5px 6px 0 #0f0f0f;text-decoration:none;cursor:pointer;transition:transform .15s,background .15s;animation:pop-in .55s cubic-bezier(.34,1.56,.64,1) both}.button:hover{transform:translateY(-4px) rotate(0) scale(1.03);background:#f28c28}.button:focus-visible{outline:4px solid #5fc8eb}.button.local{--rot:-2.5deg;transform:rotate(var(--rot));animation-delay:.15s;padding-top:20px;padding-bottom:20px}.button.global{--rot:1.5deg;transform:rotate(var(--rot));animation-delay:.28s}.button.settings{--rot:-1.5deg;transform:rotate(var(--rot));animation-delay:.4s}.button.local:hover,.button.global:hover{transform:translateY(-4px) rotate(0) scale(1.03);background:#f28c28}.icon{display:grid;place-items:center;flex:none;width:44px;height:44px;border:2px solid #0f0f0f;border-radius:12px;background:#114d86;color:#efd31e;font-size:25px;font-weight:900}.label{font:32px 'Protest Guerrilla',cursive;letter-spacing:.04em;text-transform:uppercase}.button.local .label{font-size:36px}.inactive{cursor:default}.inactive:hover{transform:translateY(-4px) rotate(0) scale(1.03);background:#f28c28}
+.status{display:flex;align-items:center;justify-content:center;gap:8px;padding-top:16px;color:rgba(255,255,255,.7);font:600 12px monospace;letter-spacing:.14em;text-transform:uppercase}.status i{width:10px;height:10px;border-radius:50%;background:#d62828;animation:blink 2s step-end infinite}
+@keyframes slide-in-left{from{opacity:0;transform:translateX(-3rem)}to{opacity:1;transform:translateX(0)}}@keyframes pop-in{0%{opacity:0;transform:translateY(1.25rem) scale(.9) rotate(var(--rot,-2deg))}70%{transform:translateY(-.15rem) scale(1.02) rotate(var(--rot,-2deg))}100%{opacity:1;transform:translateY(0) scale(1) rotate(var(--rot,-2deg))}}@keyframes float{0%,100%{transform:translateY(0) rotate(-3deg)}50%{transform:translateY(-8px) rotate(-3deg)}}@keyframes scan{from{transform:translateY(-100%)}to{transform:translateY(100%)}}@keyframes pulse-dot{0%,100%{opacity:.35}50%{opacity:1}}@keyframes blink{0%,92%,100%{opacity:1}95%{opacity:.25}}
+@media(max-width:700px){.menu{width:100%;padding:32px 24px}.logo{width:min(80vw,30rem)}.silhouette{width:90vw}.tracking{inset:14% 15% 10%}.hud{inset:16px}.rec{right:16px;top:16px}}
+@media(prefers-reduced-motion:reduce){.logo-wrap,.menu,.button,.status i{animation:none}}
 </style>
-<main class="shell"><h1>POSES</h1><p>Choose how you want to play.</p><section class="modes"><a class="mode" href="/local"><h2>Local game</h2><p>Two players share one camera and screen.</p><span>Use this device</span></a><a class="mode online" id="online" href="#"><h2>Online game</h2><p>Each player uses their own device. Share a room code to play remotely.</p><span>Open multiplayer</span></a></section></main>
-<script>document.querySelector('#online').href=`${location.protocol==='file:'?'http:':location.protocol}//${location.hostname||'127.0.0.1'}:8001`;</script>
+</head>
+<body>
+<main class="scene">
+	<div class="silhouette" aria-hidden="true"></div>
+	<div class="tracking" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
+	<svg class="skeleton" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+		<g>
+			<line x1="50" y1="20" x2="50" y2="34"/><line x1="50" y1="34" x2="38" y2="40"/><line x1="50" y1="34" x2="62" y2="40"/><line x1="38" y1="40" x2="30" y2="55"/><line x1="62" y1="40" x2="70" y2="55"/><line x1="30" y1="55" x2="26" y2="68"/><line x1="70" y1="55" x2="74" y2="68"/><line x1="50" y1="34" x2="50" y2="58"/><line x1="50" y1="58" x2="43" y2="74"/><line x1="50" y1="58" x2="57" y2="74"/><line x1="43" y1="74" x2="41" y2="90"/><line x1="57" y1="74" x2="59" y2="90"/>
+			<circle cx="50" cy="20" r=".9"/><circle cx="50" cy="34" r=".9"/><circle cx="38" cy="40" r=".9"/><circle cx="62" cy="40" r=".9"/><circle cx="30" cy="55" r=".9"/><circle cx="70" cy="55" r=".9"/><circle cx="26" cy="68" r=".9"/><circle cx="74" cy="68" r=".9"/><circle cx="50" cy="58" r=".9"/><circle cx="43" cy="74" r=".9"/><circle cx="57" cy="74" r=".9"/><circle cx="41" cy="90" r=".9"/><circle cx="59" cy="90" r=".9"/>
+		</g>
+	</svg>
+	<div class="scan" aria-hidden="true"></div>
+	<div class="hud" aria-hidden="true"></div>
+	<div class="rec"><b></b>REC &nbsp; CAMERA FEED</div>
+	<section class="menu" aria-label="Main menu">
+		<div class="logo-wrap"><img class="logo" src="/poses-graffiti.png" alt="POSES"></div>
+		<nav>
+			<a class="button local" href="/local"><span class="icon" aria-hidden="true">&#9822;</span><span class="label">Local</span></a>
+			<a class="button global" href="http://127.0.0.1:8001"><span class="icon" aria-hidden="true">&#9673;</span><span class="label">Global</span></a>
+			<span class="button settings inactive" aria-disabled="true"><span class="icon" aria-hidden="true">&#9881;</span><span class="label">Settings</span></span>
+		</nav>
+		<footer class="status"><i></i>Camera ready - step back to play</footer>
+	</section>
+</main>
+</body>
 </html>

@@ -199,6 +199,11 @@ def index():
     return FileResponse(ROOT / 'static/main.html')
 
 
+@app.get('/poses-graffiti.png')
+def logo():
+    return FileResponse(ROOT / 'static/poses-graffiti.png')
+
+
 @app.get('/local')
 def local_index():
     return FileResponse(ROOT / 'static/index.html')
