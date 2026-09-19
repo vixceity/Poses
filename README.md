@@ -36,12 +36,13 @@ Open **http://127.0.0.1:8000** and click **Start new game**. The camera belongs 
 
 ### Redesigned game screen
 
-The connected Next.js prototype lives in `C:\Users\ilove\Downloads\poses-game-ui-redesign`. With the FastAPI camera host still running, start it in another terminal:
+The connected Next.js app lives in the repository's `frontend` directory. With the FastAPI camera host still running, start it in another terminal from the repository root:
 
 ```powershell
-Set-Location C:\Users\ilove\Downloads\poses-game-ui-redesign
+Push-Location frontend
 npm.cmd install
 npm.cmd run dev
+Pop-Location
 ```
 
 Open **http://127.0.0.1:3001**. Port 3000 remains available for SpacetimeDB. The redesigned screen reads the real game state and camera feed from port 8000. Its two POSES rails are driven by the backend letter totals, so each missed copying sequence lights the next letter for the player who missed it.
@@ -58,8 +59,10 @@ the same game restores the saved photos. The copying timer covers the entire seq
 With the UI running, its automated browser checks use Microsoft Edge:
 
 ```powershell
+Push-Location frontend
 npm.cmd run check
 npm.cmd test
+Pop-Location
 ```
 
 The home page also offers **Online game**. Start the multiplayer relay in a second terminal:
