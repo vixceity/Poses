@@ -101,6 +101,9 @@ export default function Page() {
           hasGame={game.hasGame}
           disabled={!game.connected || game.starting}
           onReset={game.resetGame}
+          voiceoverEnabled={game.voiceoverEnabled}
+          enablingVoiceover={game.enablingVoiceover}
+          onEnableVoiceover={game.enableVoiceover}
         />
       </div>
     </main>

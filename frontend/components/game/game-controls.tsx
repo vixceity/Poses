@@ -1,6 +1,6 @@
 'use client'
 
-import { RotateCcw } from 'lucide-react'
+import { RotateCcw, Volume2 } from 'lucide-react'
 
 export function GameControls({
   tolerance,
@@ -10,6 +10,9 @@ export function GameControls({
   hasGame,
   disabled,
   onReset,
+  voiceoverEnabled,
+  enablingVoiceover,
+  onEnableVoiceover,
 }: {
   tolerance: number
   setTolerance: (v: number) => void
@@ -18,6 +21,9 @@ export function GameControls({
   hasGame: boolean
   disabled: boolean
   onReset: () => void
+  voiceoverEnabled: boolean
+  enablingVoiceover: boolean
+  onEnableVoiceover: () => void
 }) {
   return (
     <div className="flex flex-wrap items-end justify-center gap-4">
@@ -54,6 +60,17 @@ export function GameControls({
           className="poses-input w-20 px-2 py-1.5 text-sm"
         />
       </label>
+
+      <button
+        suppressHydrationWarning
+        type="button"
+        disabled={voiceoverEnabled || enablingVoiceover}
+        onClick={onEnableVoiceover}
+        className="poses-btn flex items-center gap-2 px-6 py-2.5 text-lg"
+      >
+        <Volume2 aria-hidden="true" />
+        {voiceoverEnabled ? 'VOICEOVER ON' : enablingVoiceover ? 'ENABLING…' : 'ENABLE VOICEOVER'}
+      </button>
 
       {hasGame && <button
           suppressHydrationWarning

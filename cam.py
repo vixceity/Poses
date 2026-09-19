@@ -17,6 +17,7 @@ from mediapipe.tasks.python import vision
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, Response, StreamingResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from database import Database
@@ -252,6 +253,8 @@ app.add_middleware(
     allow_methods=['GET', 'POST'],
     allow_headers=['Content-Type'],
 )
+app.mount('/voiceover', StaticFiles(directory=ROOT / 'voiceover'), name='voiceover')
+app.mount('/assets/audio', StaticFiles(directory=ROOT / 'assets' / 'audio'), name='voiceover-audio')
 
 
 class GameOptions(BaseModel):

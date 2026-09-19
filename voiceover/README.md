@@ -1,8 +1,9 @@
 # Offline voiceover foundation
 
-This directory is an isolated, dependency-free preview and playback layer for the
-existing recordings in `assets/audio`. It is not imported by the local or online
-game, and it does not observe game state.
+This directory contains the dependency-free preview and playback layer for the
+existing recordings in `assets/audio`. The Next.js local game uses it through
+the FastAPI host's `/voiceover` and `/assets/audio` routes. Online play remains
+unconnected.
 
 ## Preview
 
@@ -25,7 +26,7 @@ remain available under `/assets/audio/`. The manifest keeps their exact spaces,
 capitalization, and parentheses. `new URL(path, baseUrl)` performs URL encoding;
 the files themselves are never renamed or copied.
 
-## Event contract for later integration
+## Local-game event contract
 
 - `game.instructions`: randomly select one start-instruction recording.
 - `turn.pose.prepare(player)`: play the player's name, wait for `ended`, then
@@ -38,8 +39,9 @@ the files themselves are never renamed or copied.
 - `letter.awarded(player)`: play fail when that player's letter count increases.
 - `game.won(player)`: play win for the winner.
 
-`readysetgo` is disabled by default. No event above is connected to a game state
-in this implementation.
+`readysetgo` is disabled by default. The local React game derives these cues from
+changes to game ID, phase, round, setter, pose count/index, letters, and winner;
+it never parses the displayed status message.
 
 ## Playback behavior
 
@@ -50,8 +52,8 @@ path reports through `onError`, resolves that clip as an error, and continues to
 the next queued clip.
 
 Callers may supply a `dedupeKey` when enqueueing a cue. Reusing that key skips the
-duplicate. Future game integration should derive unique keys from structured
-state transitions rather than human-readable game messages.
+duplicate. Cues may also use a cancellation `group`; the local game cancels
+obsolete queued preparation prompts whenever structured game state advances.
 
 ## Automated tests
 

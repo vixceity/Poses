@@ -1,9 +1,12 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { OfflineVoiceover } from '../../../voiceover/offline_voiceover.js'
 import { POSES_API, type CameraStatus } from './use-camera'
 import { EMPTY_STATE, fromBackend, type BackendState } from './game-state'
 export { POSES_WORD, MAX_LETTERS, type Phase } from './game-state'
+
+const PREPARATION_GROUP = 'turn-preparation'
 
 export function usePosesGame() {
   const [tolerance, setTolerance] = useState(0.25)
@@ -14,12 +17,40 @@ export function usePosesGame() {
   const [error, setError] = useState('')
   const [starting, setStarting] = useState(false)
   const [startCountdown, setStartCountdown] = useState(0)
+  const [voiceoverEnabled, setVoiceoverEnabled] = useState(false)
+  const [enablingVoiceover, setEnablingVoiceover] = useState(false)
   const pending = useRef(false)
   const gestureArmed = useRef(false)
   const releaseTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const request = useRef<AbortController | null>(null)
   const version = useRef(0)
+  const voiceover = useRef<OfflineVoiceover | null>(null)
+  const previousVoiceState = useRef<BackendState | null>(null)
   const snapshot = fromBackend(data)
+
+  const getVoiceover = useCallback(() => {
+    if (!voiceover.current) {
+      voiceover.current = new OfflineVoiceover({
+        baseUrl: `${POSES_API}/voiceover/offline_voiceover.js`,
+        onError: (audioError: { message: string; detail: string }) => {
+          console.warn(audioError.message, audioError.detail)
+        },
+      })
+    }
+    return voiceover.current
+  }, [])
+
+  const enableVoiceover = useCallback(async () => {
+    if (voiceoverEnabled || enablingVoiceover) return
+    setEnablingVoiceover(true)
+    const player = getVoiceover()
+    const enabled = await player.unlock()
+    if (enabled) {
+      player.preload()
+      setVoiceoverEnabled(true)
+    }
+    setEnablingVoiceover(false)
+  }, [enablingVoiceover, getVoiceover, voiceoverEnabled])
 
   const startGame = useCallback((fromGesture = false) => {
     if (pending.current) return
@@ -158,6 +189,116 @@ export function usePosesGame() {
     setError('Camera unavailable. Each player should raise one hand after the camera reconnects.')
   }, [connected, data.camera_ready, starting])
 
+  useEffect(() => {
+    if (!voiceoverEnabled) {
+      // Keep a baseline so enabling voiceover during a running game does not
+      // replay cues that belonged to earlier transitions.
+      previousVoiceState.current = data
+      return
+    }
+
+    const player = getVoiceover()
+    const previous = previousVoiceState.current
+    previousVoiceState.current = data
+    const game = data.game
+    const previousGame = previous?.game
+
+    if (!data.id || !game) {
+      player.cancelGroup(PREPARATION_GROUP)
+      return
+    }
+
+    const gameKey = `game:${data.id}`
+    const queuePosePreparation = () => player.preparePose(game.setter, {
+      dedupeKey: `${gameKey}:round:${game.round}:prepare-pose`,
+      group: PREPARATION_GROUP,
+    })
+    const queueCopyPreparation = () => player.prepareCopy(3 - game.setter, {
+      dedupeKey: `${gameKey}:round:${game.round}:prepare-copy`,
+      group: PREPARATION_GROUP,
+    })
+    const newGame = previous?.id !== data.id || !previousGame
+
+    if (newGame) {
+      player.cancelGroup(PREPARATION_GROUP)
+      const instructionKey = `poses-voiceover-instructions:${data.id}`
+      let instructionsPlayed = false
+      try {
+        instructionsPlayed = sessionStorage.getItem(instructionKey) === '1'
+        if (!instructionsPlayed) sessionStorage.setItem(instructionKey, '1')
+      } catch {
+        // Session storage is optional; the queue's dedupe key still protects polling.
+      }
+      if (!instructionsPlayed) {
+        void player.gameInstructions({ dedupeKey: `${gameKey}:instructions` })
+      }
+      if (game.phase === 'setting' || game.phase === 'handoff') void queuePosePreparation()
+      else if (game.phase === 'ready') void queueCopyPreparation()
+      return
+    }
+
+    const savedBefore = previousGame.poses.length
+    const savedNow = game.poses.length
+    const stateAdvanced = previousGame.phase !== game.phase
+      || previousGame.round !== game.round
+      || previousGame.index !== game.index
+      || savedBefore !== savedNow
+      || game.letters.some((letters, index) => letters !== previousGame.letters[index])
+    if (stateAdvanced) player.cancelGroup(PREPARATION_GROUP)
+
+    if (game.round === previousGame.round && savedNow > savedBefore) {
+      for (let completed = savedBefore + 1; completed <= savedNow; completed++) {
+        void player.praise(game.setter, {
+          dedupeKey: `${gameKey}:round:${game.round}:setter-pose:${completed}`,
+        })
+      }
+      if (savedBefore < 3 && savedNow >= 3) {
+        void player.pass(game.setter, {
+          dedupeKey: `${gameKey}:round:${game.round}:setter-pass`,
+        })
+      }
+    }
+
+    if (previousGame.phase === 'copying') {
+      const copier = 3 - previousGame.setter
+      if (game.phase === 'copying' && game.round === previousGame.round && game.index > previousGame.index) {
+        for (let completed = previousGame.index + 1; completed <= game.index; completed++) {
+          void player.praise(copier, {
+            dedupeKey: `${gameKey}:round:${previousGame.round}:copier-pose:${completed}`,
+          })
+        }
+      } else if (game.phase === 'handoff' && game.round === previousGame.round + 1) {
+        for (let completed = previousGame.index + 1; completed <= 3; completed++) {
+          void player.praise(copier, {
+            dedupeKey: `${gameKey}:round:${previousGame.round}:copier-pose:${completed}`,
+          })
+        }
+        void player.pass(copier, {
+          dedupeKey: `${gameKey}:round:${previousGame.round}:copier-pass`,
+        })
+      }
+    }
+
+    let letterIncreased = false
+    for (const playerIndex of [0, 1]) {
+      if ((game.letters[playerIndex] ?? 0) > (previousGame.letters[playerIndex] ?? 0)) {
+        letterIncreased = true
+        void player.fail(playerIndex + 1, {
+          dedupeKey: `${gameKey}:player:${playerIndex + 1}:letter:${game.letters[playerIndex]}`,
+        })
+      }
+    }
+
+    if (game.phase === 'finished' && previousGame.phase !== 'finished' && game.winner) {
+      void player.win(game.winner, { dedupeKey: `${gameKey}:winner:${game.winner}` })
+      return
+    }
+
+    if (game.phase === 'ready' && previousGame.phase !== 'ready') void queueCopyPreparation()
+    else if (game.phase === 'handoff' && previousGame.phase !== 'handoff') void queuePosePreparation()
+    else if (letterIncreased && game.phase === 'setting') void queuePosePreparation()
+  }, [data, getVoiceover, voiceoverEnabled])
+
   useEffect(() => () => {
     if (releaseTimer.current) clearTimeout(releaseTimer.current)
     releaseTimer.current = null
@@ -165,6 +306,8 @@ export function usePosesGame() {
     request.current = null
     controller?.abort()
     pending.current = false
+    voiceover.current?.cancelGroup(PREPARATION_GROUP)
+    voiceover.current?.stop()
   }, [])
 
   const cameraStatus: CameraStatus = !connected ? (data === EMPTY_STATE ? 'requesting' : 'offline')
@@ -173,6 +316,7 @@ export function usePosesGame() {
     ...snapshot, tolerance, setTolerance, secondsPerCopy, setSecondsPerCopy, flipTarget, setFlipTarget, startGame,
     resetGame, hasGame: data.game !== null,
     starting, startCountdown, connected, error,
+    voiceoverEnabled, enablingVoiceover, enableVoiceover,
     cameraStatus, feedUrl: `${POSES_API}/camera.mjpg`, backendMessage: data.status,
     visiblePlayers: connected ? data.visible_players : [], readyPlayers: connected ? data.ready_players : [],
     readyProgress: connected ? Math.min(1, data.ready_hold_ms / 2000) : 0,

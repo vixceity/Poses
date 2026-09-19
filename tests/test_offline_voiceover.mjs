@@ -174,6 +174,34 @@ test('duplicate dedupe keys are skipped without disturbing active playback', asy
   await first;
 });
 
+test('canceling a group drops obsolete queued and remaining stitched clips', async () => {
+  const { voiceover, instances, plays } = harness();
+  const blocker = voiceover.enqueue(['blocker.mp3']);
+  const obsolete = voiceover.enqueue(
+    ['player.mp3', 'get-ready.mp3'],
+    { group: 'preparation' },
+  );
+  await nextMicrotask();
+  voiceover.cancelGroup('preparation');
+  instances[0].emit('ended');
+  await blocker;
+  const canceled = await obsolete;
+  assert.equal(canceled.canceled, true);
+  assert.equal(plays.length, 1);
+
+  const partial = voiceover.enqueue(
+    ['player.mp3', 'get-ready.mp3'],
+    { group: 'preparation' },
+  );
+  await nextMicrotask();
+  assert.match(plays[1], /player\.mp3$/);
+  voiceover.cancelGroup('preparation');
+  instances[1].emit('ended');
+  const interrupted = await partial;
+  assert.equal(interrupted.canceled, true);
+  assert.equal(plays.length, 2);
+});
+
 test('controller uses ended events rather than duration timers', () => {
   const source = readFileSync(fileURLToPath(new URL('../voiceover/offline_voiceover.js', import.meta.url)), 'utf8');
   assert.match(source, /addEventListener\('ended'/);

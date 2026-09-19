@@ -21,7 +21,7 @@ export class OfflineVoiceover {
     baseUrl = import.meta.url,
     audioFactory = defaultAudioFactory,
     random = Math.random,
-    onError = () => {},
+    onError = (_error) => {},
     readySetGo = recordings.readySetGoEnabledByDefault,
   } = {}) {
     this.recordings = recordings;
@@ -31,6 +31,7 @@ export class OfflineVoiceover {
     this.onError = onError;
     this.readySetGoEnabled = Boolean(readySetGo);
     this.seen = new Set();
+    this.groupVersions = new Map();
     this.queueTail = Promise.resolve();
     this.active = null;
   }
@@ -70,8 +71,14 @@ export class OfflineVoiceover {
     else this.seen.delete(dedupeKey);
   }
 
-  enqueue(paths, { label = 'voiceover cue', dedupeKey } = {}) {
+  cancelGroup(group) {
+    this.groupVersions.set(group, (this.groupVersions.get(group) ?? 0) + 1);
+  }
+
+  enqueue(paths, { label = 'voiceover cue', dedupeKey, group } = {}) {
     const clips = Array.isArray(paths) ? [...paths] : [paths];
+    const groupVersion = group === undefined ? null : (this.groupVersions.get(group) ?? 0);
+    const canceled = () => group !== undefined && (this.groupVersions.get(group) ?? 0) !== groupVersion;
     if (dedupeKey !== undefined) {
       if (this.seen.has(dedupeKey)) {
         return Promise.resolve({ label, skipped: true, results: [] });
@@ -82,6 +89,9 @@ export class OfflineVoiceover {
     const run = async () => {
       const results = [];
       for (const path of clips) {
+        if (canceled()) {
+          return { label, skipped: false, canceled: true, results };
+        }
         if (typeof path !== 'string' || path.length === 0) {
           this.reportError(`Missing recording path in "${label}".`, String(path), null);
           results.push({ path, status: 'error' });
@@ -89,7 +99,7 @@ export class OfflineVoiceover {
         }
         results.push(await this.playOne(path, label));
       }
-      return { label, skipped: false, results };
+      return { label, skipped: false, canceled: false, results };
     };
 
     const queued = this.queueTail.then(run, run);
