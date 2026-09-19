@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>POSES</title>
+<style>
+body{font:17px system-ui;background:#101923;color:#edf4fa;max-width:1150px;margin:30px auto;padding:0 20px}h1{letter-spacing:.2em}button,input{font:inherit;padding:8px;border-radius:6px}button{background:#83e9ab;cursor:pointer}main{display:grid;grid-template-columns:2fr 1fr;gap:20px}img{width:100%;min-height:240px;background:#080d14;border-radius:12px}aside{background:#1c2a39;padding:20px;border-radius:12px}canvas{width:100%;background:#121d28;border-radius:8px}progress{width:100%;height:24px}small{color:#bacbd9}#score{font-size:24px}label{display:inline-block;margin:0 12px 12px 0}input{width:85px}@media(max-width:750px){main{grid-template-columns:1fr}}
+</style>
+<h1>POSES</h1>
+<p>Player 1 stays on the left of this preview; Player 2 stays on the right. Keep your entire body visible, stay apart, and face the camera.</p>
+<form id="start"><label>Match tolerance <input id="tolerance" type="number" value="0.25" min="0.05" max="0.8" step="0.05"></label><label>Seconds per copy <input id="timeout" type="number" value="20" min="5" max="120"></label><button>Start new game</button></form>
+<p id="status" role="status">Connecting…</p>
+<main><section><img src="/camera.mjpg" alt="Live camera with player skeletons"><p id="visible"></p><small>The preview is unmirrored. Higher tolerance makes copying easier. Stay in your lane; crossing lanes changes which player you control.</small></section>
+<aside><div id="score">P1: — · P2: —</div><p id="round"></p><p id="message">Start a game to begin.</p><p id="count"></p><progress id="hold" max="2000" value="0"></progress><p id="timer"></p><canvas id="target" width="320" height="360"></canvas><p id="error"></p><details><summary>Target pose matrix</summary><pre id="matrix" style="overflow:auto;font-size:11px"></pre></details></aside></main>
+<script>
+const $=id=>document.getElementById(id);
+const edges=[[0,1],[0,2],[2,4],[1,3],[3,5],[0,6],[1,7],[6,7],[6,8],[8,10],[7,9],[9,11]];
+function draw(matrix){
+ const c=$('target').getContext('2d');c.clearRect(0,0,320,360);
+ if(!matrix){c.fillStyle='#bacbd9';c.font='15px system-ui';c.fillText('Target appears during copying',40,170);return;}
+ const points=matrix.slice(0,12); const xs=points.map(p=>p[0]),ys=points.map(p=>p[1]);
+ const x0=Math.min(...xs),x1=Math.max(...xs),y0=Math.min(...ys),y1=Math.max(...ys);
+ const scale=Math.min(270/Math.max(x1-x0,.1),300/Math.max(y1-y0,.1));
+ const p=points.map(([x,y])=>[160+(x-(x0+x1)/2)*scale,180+(y-(y0+y1)/2)*scale]);
+ c.strokeStyle='#83e9ab';c.lineWidth=4;
+ for(const[a,b]of edges){c.beginPath();c.moveTo(...p[a]);c.lineTo(...p[b]);c.stroke();}
+ c.fillStyle='#fff';for(const[x,y]of p){c.beginPath();c.arc(x,y,5,0,Math.PI*2);c.fill();}
+}
+$('start').onsubmit=async e=>{e.preventDefault();const button=e.target.querySelector('button');button.disabled=true;
+ try{const r=await fetch('/api/games',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tolerance:Number($('tolerance').value),timeout_seconds:Number($('timeout').value)})});if(!r.ok)throw Error((await r.json()).detail);}
+ catch(e){$('status').textContent=e.message;}finally{button.disabled=false;}};
+async function poll(){try{
+ const response=await fetch('/api/state');if(!response.ok)throw Error('Camera service unavailable');const s=await response.json();
+ $('status').textContent=s.status;$('visible').textContent='Full-body tracking: '+(s.visible_players.map(p=>'Player '+p).join(', ')||'No valid players');
+ const g=s.game;if(g){$('score').textContent=`P1: ${'POSES'.slice(0,g.letters[0])||'—'} · P2: ${'POSES'.slice(0,g.letters[1])||'—'}`;
+ $('round').textContent=`Round ${g.round} · ${g.phase}`;$('message').textContent=g.message;
+ $('count').textContent=g.phase==='setting'?`${g.poses.length}/3 poses saved`:g.phase==='copying'?`${g.index}/3 poses copied`:'';
+ $('hold').value=g.holdMs;$('timer').textContent=g.phase==='copying'?`${Math.max(0,Math.ceil((g.deadline-s.now)/1000))} seconds remaining`:'';
+ const target=g.phase==='copying'?g.poses[g.index]:null;draw(target);$('matrix').textContent=target?JSON.stringify(target.map(r=>r.map(v=>+v.toFixed(3))),null,1):'';
+ $('error').textContent=g.error===null?'Hold steady for 2 seconds':`Pose error: ${g.error.toFixed(3)} / ${g.tolerance.toFixed(3)} allowed`;
+ }
+ }catch(e){$('status').textContent=e.message;}finally{setTimeout(poll,200);}}
+draw(null);poll();
+</script></html>

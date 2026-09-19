@@ -1,0 +1,10 @@
+.venv/
+__pycache__/
+.pytest_cache/
+node_modules/
+.npm-cache/
+dist/
+models/*.task
+models/*.download
+.env
+.spacetime-token
