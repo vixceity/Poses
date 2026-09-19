@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Offline Voiceover Preview</title>
+  <style>
+    :root { color-scheme: dark; font-family: system-ui, sans-serif; }
+    body { max-width: 1000px; margin: 0 auto; padding: 24px; background: #101923; color: #edf4fa; }
+    h1, h2 { margin-bottom: 8px; }
+    p { color: #bacbd9; }
+    .controls, #recordings, #cues { display: flex; flex-wrap: wrap; gap: 8px; }
+    button, label { padding: 9px 12px; border: 1px solid #6f8192; border-radius: 7px; background: #1c2a39; color: inherit; }
+    button { cursor: pointer; }
+    button:hover { background: #294057; }
+    label { display: inline-flex; gap: 8px; align-items: center; }
+    #status, #errors { white-space: pre-wrap; padding: 12px; border-radius: 7px; background: #182633; }
+    #errors { color: #ffb4ab; min-height: 1.4em; }
+    .path { display: block; max-width: 290px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  </style>
+</head>
+<body>
+  <h1>Offline Voiceover Preview</h1>
+  <p>This isolated page does not read game state or modify the live game. Clips are queued and each next clip waits for the current recording's <code>ended</code> event.</p>
+
+  <div class="controls">
+    <button id="enable">Enable audio</button>
+    <button id="preload">Preload recordings</button>
+    <button id="play-all">Queue all 22 recordings</button>
+    <button id="stop">Stop current recording</button>
+    <label><input id="ready-set-go" type="checkbox"> Enable optional ready-set-go cues</label>
+  </div>
+
+  <h2>Composed cues</h2>
+  <div id="cues"></div>
+
+  <h2>Individual recordings</h2>
+  <div id="recordings"></div>
+
+  <h2>Status</h2>
+  <div id="status" role="status">Ready. Click Enable audio or any cue button.</div>
+  <h2>Errors</h2>
+  <div id="errors" role="alert">None.</div>
+
+  <script type="module">
+    import { RECORDINGS, allRecordingPaths } from './recordings.js';
+    import { OfflineVoiceover } from './offline_voiceover.js';
+
+    const status = document.getElementById('status');
+    const errors = document.getElementById('errors');
+    let errorLines = [];
+    const voiceover = new OfflineVoiceover({
+      onError(error) {
+        errorLines.push(`${error.message}${error.detail ? `\n  ${error.detail}` : ''}`);
+        errors.textContent = errorLines.join('\n');
+      },
+    });
+
+    function button(container, label, action, title = '') {
+      const element = document.createElement('button');
+      element.type = 'button';
+      element.textContent = label;
+      element.title = title;
+      element.addEventListener('click', async () => {
+        status.textContent = `Queued: ${label}`;
+        try {
+          const result = await action();
+          const summary = result?.results?.map((item) => item.status).join(', ');
+          status.textContent = `${label}: ${result?.disabled ? 'disabled by default' : summary || (result?.skipped ? 'skipped' : 'complete')}`;
+        } catch (error) {
+          errorLines.push(`${label}: ${error.message}`);
+          errors.textContent = errorLines.join('\n');
+          status.textContent = `${label}: unexpected preview error`;
+        }
+      });
+      container.appendChild(element);
+    }
+
+    const cues = document.getElementById('cues');
+    button(cues, 'Random start instructions', () => voiceover.gameInstructions());
+    for (const player of [1, 2]) {
+      button(cues, `Player ${player}: get ready to pose`, () => voiceover.preparePose(player));
+      button(cues, `Player ${player}: get ready to copy`, () => voiceover.prepareCopy(player));
+      button(cues, `Player ${player}: ready, set, go`, () => voiceover.readySetGo(player));
+      button(cues, `Player ${player}: random praise`, () => voiceover.praise(player));
+      button(cues, `Player ${player}: pass`, () => voiceover.pass(player));
+      button(cues, `Player ${player}: fail`, () => voiceover.fail(player));
+      button(cues, `Player ${player}: win`, () => voiceover.win(player));
+    }
+    button(
+      cues,
+      'Test missing clip then continue',
+      () => voiceover.enqueue(
+        ['../assets/audio/intentionally-missing.mp3', RECORDINGS.players[1].praise[0]],
+        { label: 'missing-recording recovery test' },
+      ),
+      'The first clip reports an error; the valid second clip must still play.',
+    );
+
+    const recordings = document.getElementById('recordings');
+    for (const path of allRecordingPaths()) {
+      const name = path.split('/').at(-1);
+      button(recordings, name, () => voiceover.enqueue([path], { label: name }), path);
+    }
+
+    document.getElementById('enable').addEventListener('click', async () => {
+      status.textContent = await voiceover.unlock() ? 'Audio enabled.' : 'Audio enable failed; see Errors.';
+    });
+    document.getElementById('preload').addEventListener('click', () => {
+      const loaded = voiceover.preload();
+      status.textContent = `Requested preload for ${loaded.length} recordings.`;
+    });
+    document.getElementById('play-all').addEventListener('click', async () => {
+      status.textContent = 'Queued all recordings.';
+      const result = await voiceover.enqueue(allRecordingPaths(), { label: 'all recordings' });
+      status.textContent = `All recordings finished: ${result.results.map((item) => item.status).join(', ')}`;
+    });
+    document.getElementById('stop').addEventListener('click', () => {
+      voiceover.stop();
+      status.textContent = 'Stopped the current recording; the remaining queue can continue.';
+    });
+    document.getElementById('ready-set-go').addEventListener('change', (event) => {
+      voiceover.setReadySetGoEnabled(event.target.checked);
+      status.textContent = `Ready-set-go cues ${event.target.checked ? 'enabled' : 'disabled'}.`;
+    });
+  </script>
+</body>
+</html>
