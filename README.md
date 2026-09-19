@@ -34,11 +34,21 @@ spacetime publish --server local --module-path spacetimedb poses
 
 Open **http://127.0.0.1:8000** and click **Start new game**. The camera belongs to the computer running FastAPI, not the browser. Run a single server process without reload or multiple workers so it owns the webcam exclusively. API docs are at `/docs`.
 
+The home page also offers **Online game**. Start the multiplayer relay in a second terminal:
+
+```powershell
+.\.venv\Scripts\python.exe cam_multiplayer.py
+```
+
+Players on the same network can open `http://<host-ip>:8000`, choose Online game, create or join a room, and use their own device camera on the left side of the 60/40 multiplayer layout. The target pose area is on the right. The relay keeps camera video local and forwards room/game messages through WebSockets.
+
+The SpacetimeDB module is prepared for the online migration with public `lobby` and `lobby_player` tables and these reducers: `online_create_lobby`, `online_join_lobby`, `online_set_ready`, `online_start_game`, `online_submit_frame`, and `online_heartbeat`. Publish the module after changing it. The current multiplayer page still uses the relay as its transport until a browser SpacetimeDB client is connected to these reducers.
+
 ## Playing
 
 1. Player 1 stands in the left half of the unmirrored preview, Player 2 in the right. Keep full bodies visible and remain in your lanes. A center dead zone and ambiguous-lane rejection prevent uncertain observations from being scored. Additional detected people in a player's lane invalidate that lane until they leave.
 2. Player 1 holds still for two seconds to save each of three poses. Move to a different pose between captures. Setting has no time limit.
-3. A three-second get-ready countdown shows the first target without recording or using copying time. Then Player 2 copies the three poses **in order**, holding each for two seconds within the tolerance. The target skeleton and matrix appear beside the camera. Each target has a fresh 20-second deadline by default. Wrong poses can be retried until that deadline.
+3. A three-second get-ready countdown shows the first target without recording or using copying time. Then Player 2 copies the three poses **in order**, holding each for two seconds within the tolerance. The target skeleton and matrix appear beside the camera. The copying sequence has a 20-second deadline by default. Wrong poses can be retried until that deadline.
 4. Copying all three swaps the setter role. Missing any deadline adds one letter to the copier, discards the sequence, and lets the same setter record three new poses.
 5. The first player to accumulate **POSES** loses. Start a new game to play again; prior game rows remain stored in SpacetimeDB.
 
@@ -48,7 +58,7 @@ Open **http://127.0.0.1:8000** and click **Start new game**. The camera belongs 
 
 Each pose is a **24 × 3** matrix of xyz values from MediaPipe's estimated world landmarks. The first twelve rows are left/right shoulders, elbows, wrists, hips, knees, and ankles, in that order. Subtracting the midpoint of the hips centers the skeleton at the origin. Dividing by the shoulder-midpoint-to-hip-midpoint distance compensates for player size. The remaining twelve rows are directed limb vectors using `EDGES` in `pose_processing.py` (each endpoint is expressed in the same hip-centered coordinates).
 
-SpacetimeDB compares matrices using root-mean-square Euclidean row distance. Default match tolerance is **0.25 torso lengths**; increase it in the UI to make copying easier. A stable hold must remain within 0.8 of its starting matrix for at least 1.5 seconds, with no observation gap over 1.5 seconds. A setter must move at least 0.20 from the captured pose before recording again. Missing or low-confidence joints reset the hold. Left/right and body orientation are preserved; poses are not mirrored or rotationally aligned. The displayed target is the xy projection of the 3D matrix.
+SpacetimeDB compares matrices using root-mean-square Euclidean row distance. Default match tolerance is **0.25 torso lengths**; increase it in the UI to make copying easier. A stable hold must remain within 0.8 of its starting matrix for two seconds, with no observation gap over 1.5 seconds. A setter must move at least 0.20 from the captured pose before recording again. Missing or low-confidence joints reset the hold. Left/right and body orientation are preserved; poses are not mirrored or rotationally aligned. The displayed target is the xy projection of the 3D matrix.
 
 ## Configuration
 

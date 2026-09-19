@@ -15,7 +15,9 @@ body{max-width:1800px}main{grid-template-columns:minmax(0,1fr) minmax(360px,1.15
 .team-role{font-size:clamp(18px,2.2vw,32px);font-weight:800;padding:0 8px;margin:8px 0}
 aside{text-align:center;padding:8px;overflow:hidden}#timer{font-size:clamp(34px,4vw,64px);font-weight:900;color:#ffe28a;line-height:1;margin:4px 0}
 #score{font-size:clamp(28px,4vw,52px);font-weight:800;text-align:center;margin:18px 0}#count,#hold-label{font-size:clamp(15px,1.8vw,24px);font-weight:700}progress{height:24px;accent-color:#83e9ab}#message{font-size:clamp(14px,1.7vw,23px);line-height:1.05;margin:5px 0}.mirror-control{font-size:12px}.mirror-control input{width:auto}
-#target{height:clamp(160px,30vh,260px);object-fit:contain}
+#target{height:clamp(220px,42vh,380px);object-fit:contain}
+#target-photo{display:none;width:100%;height:clamp(220px,42vh,380px);object-fit:contain;background:#121d28;border-radius:8px}
+#pose-replay{display:none;width:100%;height:clamp(220px,42vh,380px);background:#121d28;border-radius:8px}
 #ready-start{text-align:center;margin:6px 0;padding:8px 12px;border:2px solid #bacbd9;border-radius:12px;background:#1c2a39}#ready-start strong{display:block;font-size:clamp(17px,2.2vw,28px)}#ready-start p{margin:4px 0;font-size:clamp(13px,1.5vw,20px)}#ready-hold{width:100%;height:24px;accent-color:#ffe28a}
 #round,#visible,small,details{display:none}#status{margin:0;font-size:clamp(12px,1.2vw,16px)}#start{white-space:nowrap}
 #instructions{margin:0;font-size:13px}body{padding-top:6px;padding-bottom:6px;gap:3px}h1{font-size:28px;line-height:1;margin:0}
@@ -40,12 +42,12 @@ aside{text-align:center;padding:8px;overflow:hidden}#timer{font-size:clamp(34px,
 <div id="turn-countdown" aria-live="off"></div>
 </div>
 <p id="instructions">Player 1 stays left; Player 2 stays right. Keep your full body visible.</p>
-<div id="ready-start"><strong>Raise both right hands to start</strong><p id="ready-status">Both players: hold your right hand above your shoulder for 2 seconds.</p><progress id="ready-hold" max="2000" value="0"></progress></div>
-<form id="start"><label>Match tolerance <input id="tolerance" type="number" value="0.25" min="0.05" max="0.8" step="0.05"></label><label>Seconds per copy <input id="timeout" type="number" value="20" min="5" max="120"></label><button>Start new game</button></form>
+<div id="ready-start"><strong>Raise a hand to start</strong><p id="ready-status">Both players: hold one hand above your shoulder for 2 seconds.</p><progress id="ready-hold" max="2000" value="0"></progress></div>
+<form id="start"><label>Match tolerance <input id="tolerance" type="number" value="0.25" min="0.05" max="0.8" step="0.05"></label><label>Seconds per copy <input id="timeout" type="number" value="20" min="20" max="20" readonly></label><button>Start new game</button></form>
 <p id="status" role="status">Connecting…</p>
 <main>
 <section class="team" id="team1"><h2>TEAM 1 <span class="team-score" id="score1">—</span></h2><div class="camera-crop right"><img src="/camera.mjpg" alt="Team 1 mirrored camera, right half"></div><p class="team-role" id="role1">Waiting</p></section>
-<aside><h2>TARGET POSE</h2><canvas id="target" width="320" height="360"></canvas><label class="mirror-control"><input id="mirror-target" type="checkbox" checked> Flip target left/right</label><div id="timer" role="timer"></div><p id="count"></p><label for="hold" id="hold-label">Hold steady for 2 seconds</label><progress id="hold" max="2000" value="0"></progress><p id="message">Start a game to begin.</p><p id="error"></p></aside>
+<aside><h2 id="target-title">TARGET POSE</h2><canvas id="pose-replay" width="320" height="360" aria-label="Animated saved pose replay"></canvas><img id="target-photo" alt="Photo of the setter holding the pose, with tracking lines"><canvas id="target" width="320" height="360"></canvas><label class="mirror-control"><input id="mirror-target" type="checkbox" checked> Flip target left/right</label><div id="timer" role="timer"></div><p id="count"></p><label for="hold" id="hold-label">Hold steady for 2 seconds</label><progress id="hold" max="2000" value="0"></progress><p id="message">Start a game to begin.</p><p id="error"></p></aside>
 <section class="team" id="team2"><h2>TEAM 2 <span class="team-score" id="score2">—</span></h2><div class="camera-crop left"><img src="/camera.mjpg" alt="Team 2 mirrored camera, left half"></div><p class="team-role" id="role2">Waiting</p></section>
 </main>
 <p id="round"></p><p id="visible"></p>
@@ -57,6 +59,44 @@ const edges=[[0,1],[0,2],[2,4],[1,3],[3,5],[0,6],[1,7],[6,7],[6,8],[8,10],[7,9],
 let gameStartRequested=false;
 let startCountdownTimer=null;
 let startCountdown=0;
+let posePhotos=[];
+let allPosePhotos=[];
+let poseSequence=0;
+let lastRound=0;
+let lastGameId=null;
+let replayTimer=null;
+let replayImages=[];
+let replayRound=0;
+async function captureTargetPhoto(setter,slot,sequence){
+ try{
+  const response=await fetch(`/camera.jpg?pose=${Date.now()}`);if(!response.ok)throw Error('Camera snapshot unavailable');
+  const image=new Image();image.src=URL.createObjectURL(await response.blob());await image.decode();
+  const canvas=document.createElement('canvas');canvas.width=320;canvas.height=420;
+  const context=canvas.getContext('2d');const sourceWidth=image.naturalWidth/2;const sourceX=setter===1?0:sourceWidth;
+  context.drawImage(image,sourceX,0,sourceWidth,image.naturalHeight,0,0,canvas.width,canvas.height);
+  URL.revokeObjectURL(image.src);const photo=canvas.toDataURL('image/jpeg',.88);posePhotos[slot]=photo;allPosePhotos[sequence]=photo;
+  if($('target-photo').style.display!=='block')showTargetPhoto(posePhotos[slot]);
+ }catch(error){$('status').textContent=error.message;}
+}
+function showTargetPhoto(photo){
+ const image=$('target-photo');
+ image.src=photo||'';image.style.display=photo?'block':'none';$('target').style.display=photo?'none':'block';
+ if(photo){$('pose-replay').style.display='none';}
+}
+async function showPoseReplay(){
+ const photos=allPosePhotos.filter(Boolean);
+ if(!photos.length)return false;
+ replayImages=await Promise.all(photos.map(src=>new Promise(resolve=>{const image=new Image();image.onload=()=>resolve(image);image.src=src;})));
+ const canvas=$('pose-replay'),context=canvas.getContext('2d');$('target-photo').style.display='none';$('target').style.display='none';canvas.style.display='block';
+ if(replayTimer)clearInterval(replayTimer);let index=0;
+ const render=()=>{context.fillStyle='#121d28';context.fillRect(0,0,canvas.width,canvas.height);context.drawImage(replayImages[index],0,0,canvas.width,canvas.height);index=(index+1)%replayImages.length;};
+ render();replayTimer=setInterval(render,900);
+ return true;
+}
+function hidePoseReplay(){
+ if(replayTimer){clearInterval(replayTimer);replayTimer=null;}
+ $('pose-replay').style.display='none';replayImages=[];
+}
 function showTurn(g){
  const player=g?(g.phase==='finished'?g.winner:['setting','handoff'].includes(g.phase)?g.setter:3-g.setter):'';
  const title=!g?'Ready to play?':g.phase==='finished'?`PLAYER ${player} WINS!`:
@@ -108,19 +148,31 @@ async function poll(){try{
  if(gameActive)gameStartRequested=false;
  const canStart=!gameActive;
  $('ready-hold').value=canStart?s.ready_hold_ms:0;
- $('ready-status').textContent=!canStart?'Game in progress':s.ready_players.length===2?`Both right hands detected — hold ${(s.ready_hold_ms/1000).toFixed(1)} / 2.0 seconds`:`Raise both right hands (${s.ready_players.length}/2 detected)`;
+ $('ready-status').textContent=!canStart?'Game in progress':s.ready_players.length===2?`Both players have a hand up — hold ${(s.ready_hold_ms/1000).toFixed(1)} / 2.0 seconds`:`Raise a hand (${s.ready_players.length}/2 players detected)`;
  if(canStart&&s.ready_hold_ms>=2000&&!gameStartRequested)beginStartCountdown();
  showTurn(s.game);
  $('turn-countdown').textContent=['ready','handoff'].includes(s.game?.phase)?`${s.game.phase==='handoff'?'New poses start':'Copying starts'} in ${Math.max(0,Math.ceil((s.game.deadline-s.now)/1000))}…`:'';
  $('status').textContent=s.status;$('visible').textContent='Full-body tracking: '+(s.visible_players.map(p=>'Player '+p).join(', ')||'No valid players');
  const g=s.game;if(g){const score1='POSES'.slice(0,g.letters[0])||'—';const score2='POSES'.slice(0,g.letters[1])||'—';$('score1').textContent=score1;$('score2').textContent=score2;$('title-score').textContent=`P1 ${score1} · P2 ${score2}`;
+ if(s.id!==lastGameId){posePhotos=[];allPosePhotos=[];poseSequence=0;lastGameId=s.id;lastRound=0;replayRound=0;hidePoseReplay();}
+ if(g.round!==lastRound){posePhotos=[];lastRound=g.round;hidePoseReplay();}
+ if(g.phase==='setting')$('target-title').textContent=`PLAYER ${g.setter}'S POSE`;
+ if(g.phase==='setting'&&g.poses.length>0){
+  const savedSlot=g.poses.length-1;
+  if(!posePhotos[savedSlot]){const sequence=poseSequence++;captureTargetPhoto(g.setter,savedSlot,sequence);}
+ }
  const active=['setting','handoff'].includes(g.phase)?g.setter:3-g.setter;
  if(g.phase!=='finished')$('visible').textContent+=` · Player ${active}: ${s.tracking?.[active]||'Waiting for camera'}`;
  $('round').textContent=`Round ${g.round} · ${g.phase}`;$('message').textContent=g.message;
  $('count').textContent=g.phase==='setting'?`${g.poses.length}/3 poses saved`:g.phase==='copying'?`${g.index}/3 poses copied`:'';
  $('hold').value=g.holdMs;$('hold-label').textContent=`HOLD: ${(g.holdMs/1000).toFixed(1)} / 2.0 seconds`;
- $('timer').textContent=['ready','handoff','copying'].includes(g.phase)?`${Math.max(0,Math.ceil((g.deadline-s.now)/1000))}s ${g.phase==='copying'?'LEFT':'GET READY'}`:g.phase==='setting'?'MAKE A POSE':'GAME OVER';
- const target=['ready','copying'].includes(g.phase)?g.poses[g.index]:null;draw(target);$('matrix').textContent=target?JSON.stringify(target.map(r=>r.map(v=>+v.toFixed(3))),null,1):'';
+ $('timer').textContent=['setting','ready','handoff','copying'].includes(g.phase)?`${Math.max(0,Math.ceil((g.deadline-s.now)/1000))}s ${g.phase==='setting'?'TO SET POSES':g.phase==='copying'?'LEFT':'GET READY'}`:'GAME OVER';
+ const target=['ready','copying'].includes(g.phase)?g.poses[g.index]:null;
+ const settingPhotoIndex=Math.max(0,g.poses.length-1);
+ const targetPhoto=['ready','copying'].includes(g.phase)?posePhotos[g.index]:g.phase==='setting'?posePhotos[settingPhotoIndex]:null;
+ if(['ready','copying'].includes(g.phase))$('target-title').textContent=`PLAYER ${g.setter}'S POSE`;
+ showTargetPhoto(targetPhoto);draw(target);$('matrix').textContent=target?JSON.stringify(target.map(r=>r.map(v=>+v.toFixed(3))),null,1):'';
+ if(g.phase==='finished'&&g.round!==replayRound)showPoseReplay().then(shown=>{if(shown)replayRound=g.round;});
  $('error').textContent=g.phase==='ready'?'Get into position. Recording starts after the countdown.':g.error===null?'Hold steady for 2 seconds':`Pose error: ${g.error.toFixed(3)} / ${g.tolerance.toFixed(3)} allowed`;
  }
  }catch(e){$('status').textContent=e.message;}finally{setTimeout(poll,200);}}

@@ -14,7 +14,7 @@ import mediapipe as mp
 from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import FileResponse, Response, StreamingResponse
 from pydantic import BaseModel, Field
 
 from database import Database
@@ -57,8 +57,11 @@ class CameraHost:
             if index is None:
                 continue
             pose = landmarks[index]
-            # MediaPipe's landmark 16 is the person's anatomical right wrist.
-            if pose[16].y < pose[12].y - 0.04 and pose[16].y < pose[14].y:
+            # At least one wrist must be above its corresponding shoulder.
+            left_hand_up = pose[15].y < pose[11].y - 0.04 and pose[15].y < pose[13].y
+            right_hand_up = pose[16].y < pose[12].y - 0.04 and pose[16].y < pose[14].y
+            hands_up = left_hand_up or right_hand_up
+            if hands_up:
                 players.append(player)
         self.ready_players = players
         if len(players) != 2:
@@ -80,7 +83,12 @@ class CameraHost:
                 base_options=python.BaseOptions(model_asset_path=str(model)),
                 running_mode=vision.RunningMode.VIDEO, num_poses=4,
                 min_pose_detection_confidence=0.6, min_tracking_confidence=0.6))
-            capture = cv2.VideoCapture(int(os.getenv('CAMERA_INDEX', '0')))
+            camera_index = int(os.getenv('CAMERA_INDEX', '0'))
+            backend = cv2.CAP_DSHOW if os.name == 'nt' else cv2.CAP_ANY
+            capture = cv2.VideoCapture(camera_index, backend)
+            if not capture.isOpened() and backend != cv2.CAP_ANY:
+                capture.release()
+                capture = cv2.VideoCapture(camera_index)
             if not capture.isOpened():
                 raise RuntimeError('Cannot open camera. Check CAMERA_INDEX and camera permissions.')
             last_timestamp = 0
@@ -183,11 +191,16 @@ app = FastAPI(title='POSES camera host', lifespan=lifespan)
 
 class GameOptions(BaseModel):
     tolerance: float = Field(default=0.25, ge=0.05, le=0.8)
-    timeout_seconds: int = Field(default=20, ge=5, le=120)
+    timeout_seconds: int = Field(default=20, ge=20, le=20)
 
 
 @app.get('/')
 def index():
+    return FileResponse(ROOT / 'static/main.html')
+
+
+@app.get('/local')
+def local_index():
     return FileResponse(ROOT / 'static/index.html')
 
 
@@ -218,6 +231,13 @@ async def camera():
                 yield b'--frame\r\nContent-Type: image/jpeg\r\n\r\n' + jpeg + b'\r\n'
             await asyncio.sleep(0.12)
     return StreamingResponse(frames(), media_type='multipart/x-mixed-replace; boundary=frame')
+
+
+@app.get('/camera.jpg')
+def camera_snapshot():
+    if not host.jpeg:
+        raise HTTPException(503, 'Camera frame unavailable')
+    return Response(content=host.jpeg, media_type='image/jpeg')
 
 
 if __name__ == '__main__':

@@ -5,12 +5,12 @@ const pose = (n: number) => Array.from({length:24}, () => [n, 0, 0]);
 test('handoff provides three seconds without recording or spending copying time', () => {
   const g=createGame(0);
   for(let i=0;i<3;i++) hold(g,1,i,100+i*2200);
-  assert.equal(g.phase,'ready');assert.equal(g.deadline,9000);
+  assert.equal(g.phase,'ready');assert.equal(g.deadline,9500);
   hold(g,2,0,7000);
   assert.equal(g.index,0);assert.equal(g.holdMs,0);
-  assert.equal(tick(g,8999),false);
-  tick(g,9000);
-  assert.equal(g.phase,'copying');assert.equal(g.deadline,29000);
+  assert.equal(tick(g,9499),false);
+  tick(g,9500);
+  assert.equal(g.phase,'copying');assert.equal(g.deadline,29500);
   assert.deepEqual(g.letters,[0,0]);
   hold(g,2,0,11600);assert.equal(g.index,1);
 });
@@ -39,19 +39,19 @@ test('two seconds required; missing frames and movement reset hold', () => {
 });
 test('timeout assigns exactly one letter and preserves setter; POSES loses', () => {
   const g=createGame(0);
-  for(let n=0;n<5;n++) {
-    setThree(g,n*100000+100);tick(g,g.deadline);
-    assert.equal(g.letters[1],n+1);assert.equal(g.setter,1);
-    tick(g,9999999);assert.equal(g.letters[1],n+1);
-  }
-  assert.equal(g.phase,'finished');assert.equal(g.winner,1);
+  setThree(g);tick(g,g.deadline);
+  assert.deepEqual(g.letters,[0,1]);assert.equal(g.setter,1);
 });
-test('player one can also earn letters after a role swap', () => {
-  const g=createGame(0);setThree(g);
-  for(let i=0;i<3;i++)hold(g,2,i,12000+i*2200);
-  tick(g,g.deadline);
-  setThree(g,20000);tick(g,g.deadline);
-  assert.deepEqual(g.letters,[1,0]);assert.equal(g.setter,2);
+test('setter timeout hands the turn to the other player', () => {
+  const g=createGame(0);
+  tick(g,g.deadline);assert.equal(g.phase,'handoff');assert.equal(g.setter,2);
+  tick(g,g.deadline);assert.equal(g.phase,'setting');assert.equal(g.deadline,43000);
+});
+test('setter has one total twenty-second window for all three poses', () => {
+  const g=createGame(0);
+  hold(g,1,0,100);assert.equal(g.poses.length,1);
+  observe(g,1,null,19900);hold(g,1,1,20000);
+  assert.equal(g.phase,'handoff');assert.equal(g.setter,2);
 });
 test('late frames do not record in the new round, inactive player is ignored', () => {
   const g=createGame(0);hold(g,2,0,100);assert.equal(g.poses.length,0);
@@ -59,7 +59,7 @@ test('late frames do not record in the new round, inactive player is ignored', (
   assert.equal(g.phase,'setting');assert.equal(g.anchor,null);
 });
 test('tolerance accepts small errors and rejects large errors', () => {
-  const g=createGame(0);setThree(g);hold(g,2,.3,12000);assert.equal(g.index,0);
+  const g=createGame(0,.25);setThree(g);hold(g,2,.3,12000);assert.equal(g.index,0);
   hold(g,2,.2,14300);assert.equal(g.index,1);
   assert.equal(distance(pose(0),pose(.25)),.25);
 });

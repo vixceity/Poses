@@ -1,0 +1,11 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>POSES | Choose a mode</title>
+<style>
+*{box-sizing:border-box}html,body{margin:0;min-height:100%;font-family:system-ui,sans-serif;background:#101923;color:#edf4fa}body{display:grid;place-items:center;padding:24px}.shell{width:min(920px,100%)}h1{font-size:clamp(42px,8vw,84px);letter-spacing:.18em;margin:0 0 8px;color:#83e9ab}p{color:#bacbd9}.modes{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;margin-top:30px}.mode{display:flex;flex-direction:column;align-items:flex-start;min-height:240px;padding:26px;border:2px solid #435264;border-radius:14px;background:#1c2a39;color:#edf4fa;text-decoration:none;transition:border-color .2s,transform .2s}.mode:hover{border-color:#83e9ab;transform:translateY(-3px)}.mode h2{margin:0 0 10px;font-size:30px}.mode span{margin-top:auto;padding:10px 16px;border-radius:7px;background:#83e9ab;color:#101923;font-weight:700}.online span{background:#80beff}@media(max-width:650px){.modes{grid-template-columns:1fr}}
+</style>
+<main class="shell"><h1>POSES</h1><p>Choose how you want to play.</p><section class="modes"><a class="mode" href="/local"><h2>Local game</h2><p>Two players share one camera and screen.</p><span>Use this device</span></a><a class="mode online" id="online" href="#"><h2>Online game</h2><p>Each player uses their own device. Share a room code to play remotely.</p><span>Open multiplayer</span></a></section></main>
+<script>document.querySelector('#online').href=`${location.protocol==='file:'?'http:':location.protocol}//${location.hostname||'127.0.0.1'}:8001`;</script>
+</html>
