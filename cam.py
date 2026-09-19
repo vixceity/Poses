@@ -92,6 +92,7 @@ class CameraHost:
                         cv2.circle(frame, point, 4, color, -1)
                     cv2.putText(frame, f'P{player}', points[0], cv2.FONT_HERSHEY_SIMPLEX, 0.8, color, 2)
                 cv2.line(frame, (width // 2, 0), (width // 2, height), (180, 180, 180), 1)
+                frame = cv2.flip(frame, 1)
                 encoded, jpeg = cv2.imencode('.jpg', frame, [cv2.IMWRITE_JPEG_QUALITY, 80])
                 with self.lock:
                     if encoded:

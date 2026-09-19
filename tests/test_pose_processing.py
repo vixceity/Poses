@@ -1,6 +1,15 @@
 from types import SimpleNamespace
 import numpy as np
-from pose_processing import normalize, assign_lanes
+from pose_processing import normalize, assign_lanes, quality_issue
+
+
+def test_moderate_confidence_allowed_but_hidden_joint_explained():
+    image = landmarks()
+    image[15].visibility = 0.5
+    assert normalize(landmarks(), image) is not None
+    image[15].visibility = 0.2
+    assert 'left wrist' in quality_issue(image)
+    assert normalize(landmarks(), image) is None
 
 
 def landmarks():
