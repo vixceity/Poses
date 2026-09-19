@@ -1,11 +1,9 @@
 """Run with python cam_multiplayer.py for cross-device room relay play."""
-import asyncio
 import json
 import secrets
-from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse
 
 ROOT = Path(__file__).resolve().parent
@@ -51,23 +49,32 @@ async def room_socket(websocket: WebSocket, room: str, player: str):
     if player not in {'1', '2'} or not room.isalnum() or len(room) > 8:
         await websocket.close(code=1008)
         return
+
     await websocket.accept()
     rooms.setdefault(room, {})[player] = websocket
+    participants = sorted(rooms[room])
+
     try:
-        await websocket.send_json({'type': 'state', 'room': room, 'players': sorted(rooms[room])})
-        await broadcast(room, {'type': 'state', 'room': room, 'players': sorted(rooms[room])})
+        await websocket.send_json({'type': 'state', 'room': room, 'players': participants})
+        await broadcast(room, {'type': 'state', 'room': room, 'players': participants}, exclude=websocket)
+
         while True:
             message = json.loads(await websocket.receive_text())
-            if message.get('type') not in {'pose', 'game'}:
+            message_type = message.get('type')
+            allowed_types = {'pose', 'game', 'offer', 'answer', 'candidate', 'ready', 'start', 'signal'}
+            if message_type not in allowed_types:
                 continue
-            await broadcast(room, {**message, 'player': player}, exclude=websocket)
+            payload = {**message, 'player': player}
+            await broadcast(room, payload, exclude=websocket)
     except (WebSocketDisconnect, json.JSONDecodeError):
         pass
     finally:
-        if rooms.get(room, {}).get(player) is websocket:
-            rooms[room].pop(player, None)
+        room_players = rooms.get(room, {})
+        if room_players.get(player) is websocket:
+            room_players.pop(player, None)
         if room in rooms:
-            await broadcast(room, {'type': 'state', 'room': room, 'players': sorted(rooms[room])})
+            remaining = sorted(rooms[room])
+            await broadcast(room, {'type': 'state', 'room': room, 'players': remaining})
             if not rooms[room]:
                 rooms.pop(room, None)
 
