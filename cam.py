@@ -34,6 +34,9 @@ class CameraHost:
         self.jpeg = None
         self.status = 'Starting camera'
         self.visible = []
+        self.ready_hold_ms = 0
+        self.ready_players = []
+        self.ready_since = None
         self.thread = threading.Thread(target=self.run, daemon=True)
 
     def start_game(self, tolerance, timeout):
@@ -43,7 +46,28 @@ class CameraHost:
             self.db.call('create_game', game_id, tolerance, timeout)
             self.game_id = game_id
             self.state = self.db.state(game_id)
+            self.ready_hold_ms = 0
+            self.ready_players = []
+            self.ready_since = None
             return game_id
+
+    def update_ready_gesture(self, landmarks, lanes, now):
+        players = []
+        for player, index in lanes.items():
+            if index is None:
+                continue
+            pose = landmarks[index]
+            # MediaPipe's landmark 16 is the person's anatomical right wrist.
+            if pose[16].y < pose[12].y - 0.04 and pose[16].y < pose[14].y:
+                players.append(player)
+        self.ready_players = players
+        if len(players) != 2:
+            self.ready_since = None
+            self.ready_hold_ms = 0
+            return
+        if self.ready_since is None:
+            self.ready_since = now
+        self.ready_hold_ms = min(2000, now - self.ready_since)
 
     def run(self):
         capture = None
@@ -77,6 +101,14 @@ class CameraHost:
                     image_format=mp.ImageFormat.SRGB,
                     data=cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)), timestamp)
                 lanes = assign_lanes(result.pose_landmarks)
+                now = int(time.monotonic() * 1000)
+                with self.lock:
+                    if not self.game_id or not self.state or self.state.get('phase') == 'finished':
+                        self.update_ready_gesture(result.pose_landmarks, lanes, now)
+                    else:
+                        self.ready_players = []
+                        self.ready_since = None
+                        self.ready_hold_ms = 0
                 matrices = {p: normalize(result.pose_world_landmarks[i], result.pose_landmarks[i])
                             if i is not None else None for p, i in lanes.items()}
                 height, width = frame.shape[:2]
@@ -172,7 +204,8 @@ def new_game(options: GameOptions):
 def state():
     with host.lock:
         return {'id': host.game_id, 'game': host.state, 'status': host.status,
-                'visible_players': host.visible, 'now': int(time.time() * 1000)}
+                'visible_players': host.visible, 'ready_players': host.ready_players,
+                'ready_hold_ms': host.ready_hold_ms, 'now': int(time.time() * 1000)}
 
 
 @app.get('/camera.mjpg')
