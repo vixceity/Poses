@@ -1,12 +1,46 @@
 # POSES
 
-A local two-player camera game. OpenCV captures the webcam; MediaPipe detects up to four people; FastAPI serves the camera preview and sends normalized observations to SpacetimeDB. SpacetimeDB owns the two-second hold checks, saved pose matrices, comparisons, deadlines, rounds, letters, and winner. There is no in-memory fallback game engine.
+POSES is a two-player camera game where players create and copy physical poses. The first player to spell **POSES** through failed copying rounds loses.
 
-## Setup (Windows PowerShell)
+## Overview
 
-Install Python 3.11 or 3.12, Node.js 24+, and the [SpacetimeDB 2.x CLI](https://spacetimedb.com/docs/). Use a CLI/server compatible with the pinned `spacetimedb` 2.0.0 SDK.
+The camera host detects both players, assigns them to lanes, normalizes their body landmarks, and sends pose observations to SpacetimeDB. The database validates holds, stores pose sequences, controls the timer, swaps roles, and records penalties. The frontend displays the live camera feed, target pose, progress, timer, and match result.
 
-From the repository root:
+## Features
+
+- Two-player local camera gameplay
+- Full-body pose detection and lane assignment
+- Three-pose sequences copied in order
+- Two-second stable holds for recording and matching
+- Configurable match tolerance and copying timer
+- Automatic role swapping after successful rounds
+- POSES failure letters and win/loss state
+- Target photos, skeleton view, match replay, and reset controls
+- Optional online multiplayer prototype with WebSocket rooms
+
+## Technology Stack
+
+| Area | Technology |
+| --- | --- |
+| Camera service | Python, FastAPI, Uvicorn, OpenCV |
+| Pose detection | MediaPipe Pose Landmarker, NumPy |
+| Game backend | SpacetimeDB 2.x, TypeScript reducers |
+| Frontend | Next.js, React, TypeScript, Tailwind CSS |
+| Testing | Pytest, Node test runner, Playwright |
+| Communication | HTTP APIs, camera MJPEG stream, WebSockets for the multiplayer prototype |
+
+## Installation (Windows PowerShell)
+
+Install [Python 3.11 or 3.12](https://www.python.org/downloads/), [Node.js 24+](https://nodejs.org/), and the [SpacetimeDB 2.x CLI](https://spacetimedb.com/docs/).
+
+1. Clone the repository:
+
+```powershell
+git clone <repository-url>
+cd Poses
+```
+
+2. Install dependencies:
 
 ```powershell
 python -m venv .venv
@@ -14,66 +48,70 @@ python -m venv .venv
 .\.venv\Scripts\python.exe download_model.py
 Push-Location spacetimedb
 npm.cmd ci
-npm.cmd run check
-npm.cmd test
+Pop-Location
+Push-Location frontend
+npm.cmd install
 Pop-Location
 ```
 
-Start the database in its own terminal:
+3. Start SpacetimeDB in a separate terminal:
 
 ```powershell
 spacetime start
 ```
 
-In another terminal, from the repository root, publish the module and run the camera service:
+4. Start the game services from the repository root:
 
 ```powershell
 spacetime publish --server local --module-path spacetimedb poses
 .\.venv\Scripts\python.exe cam.py
 ```
 
-Open **http://127.0.0.1:8000** and click **Start new game**. The camera belongs to the computer running FastAPI, not the browser. Run a single server process without reload or multiple workers so it owns the webcam exclusively. API docs are at `/docs`.
-
-### Redesigned game screen
-
-The connected Next.js app lives in the repository's `frontend` directory. With the FastAPI camera host still running, start it in another terminal from the repository root:
+In another terminal, start the frontend:
 
 ```powershell
 Push-Location frontend
-npm.cmd install
 npm.cmd run dev
 Pop-Location
 ```
 
-Open **http://127.0.0.1:3001**. Port 3000 remains available for SpacetimeDB. The redesigned screen reads the real game state and camera feed from port 8000. Its two POSES rails are driven by the backend letter totals, so each missed copying sequence lights the next letter for the player who missed it.
+5. Open the game:
 
-The main menu's **Local** button opens this redesigned screen. Use the home button in the game header to return to the main menu.
+```text
+http://127.0.0.1:3001
+```
 
-The redesigned screen supports the two-player hand-raise start (hold for two seconds),
-a three-second start countdown, setting/copying deadlines, saved pose photos with a
-skeleton toggle, matching-error feedback, POSES penalties, and a pausable match replay.
-Photos are captured by the camera host on confirmed saves, including the third pose,
-and kept in host memory until a new game or server restart. Reloading the UI during
-the same game restores the saved photos. The copying timer covers the entire sequence.
+The camera is connected to the computer running `cam.py`. Run one camera service process without reload or multiple workers. The FastAPI service remains available at `http://127.0.0.1:8000`, with API documentation at `/docs`.
 
-With the UI running, its automated browser checks use Microsoft Edge:
+## Future Enhancements
+
+- **Better UI:** Improve visual feedback, accessibility, responsive layouts, and in-game guidance.
+- **Online multiplayer:** Complete browser-to-browser gameplay with remote cameras, synchronized rounds, and reliable matchmaking.
+- **Simpler usage:** Reduce setup steps, automate service startup, improve device detection, and provide clearer troubleshooting.
+
+## Development Checks
 
 ```powershell
 Push-Location frontend
 npm.cmd run check
 npm.cmd test
 Pop-Location
+Push-Location spacetimedb
+npm.cmd run check
+npm.cmd test
+Pop-Location
+.\.venv\Scripts\python.exe -m pytest tests
 ```
 
-The home page also offers **Online game**. Start the multiplayer relay in a second terminal:
+These checks cover the game rules, pose normalization, lane assignment, frontend states, and browser layout.
+
+For the online multiplayer prototype, start the relay in another terminal:
 
 ```powershell
 .\.venv\Scripts\python.exe cam_multiplayer.py
 ```
 
-Players on the same network can open `http://<host-ip>:8000`, choose Online game, create or join a room, and use their own device camera on the left side of the 60/40 multiplayer layout. The target pose area is on the right. The relay keeps camera video local and forwards room/game messages through WebSockets.
-
-The SpacetimeDB module is prepared for the online migration with public `lobby` and `lobby_player` tables and these reducers: `online_create_lobby`, `online_join_lobby`, `online_set_ready`, `online_start_game`, `online_submit_frame`, and `online_heartbeat`. Publish the module after changing it. The current multiplayer page still uses the relay as its transport until a browser SpacetimeDB client is connected to these reducers.
+Players on the same network can open `http://<host-ip>:8000`, choose Online game, create or join a room, and use their own device camera. The relay keeps camera video local and forwards room/game messages through WebSockets. The SpacetimeDB module includes the prepared online reducers, but the current multiplayer page still uses the relay as its transport.
 
 ## Playing
 
@@ -108,19 +146,5 @@ The host persists its automatically created token in the ignored `.spacetime-tok
 This prototype uses SpacetimeDB's [HTTP reducer and SQL APIs](https://spacetimedb.com/docs/http/database/) at roughly eight observations per second. HTTP is convenient for Python integration but adds overhead; a remote database may make the 600 ms continuity requirement difficult to meet. Run the database locally. The host sends heartbeat reducers even when camera frames are unavailable. Deadlines are evaluated using database time on heartbeats and observations; if the host disconnects, expiration is processed on its next request. There is no autonomous scheduled timeout while the host is stopped. Restarting the camera service requires starting a new game in the UI.
 
 Lane assignment is deliberate: this version does not perform biometric re-identification when people cross or swap sides. Monocular depth is approximate; use good lighting, enough room, and unobstructed limbs.
-
-## Verification
-
-```powershell
-Push-Location spacetimedb
-npm.cmd test
-npm.cmd run check
-Pop-Location
-.\.venv\Scripts\python.exe -m pytest tests
-```
-
-Game tests cover ordered copying, role swaps, both players' penalties, five-letter elimination, uninterrupted holds, release requirements, tolerance, late observations, and malformed inputs. Python tests cover scale/translation normalization, unreliable joints, and lane assignment.
-
-For a live smoke test, record three distinct poses, copy them to verify the role swap, then let a copying deadline expire to verify the letter penalty and unchanged setter. Cover a wrist during a hold to verify progress resets. Unplug the camera during copying to check that the deadline still expires.
 
 Implementation references: [MediaPipe Pose Landmarker](https://ai.google.dev/edge/mediapipe/solutions/vision/pose_landmarker/python), [SpacetimeDB reducers](https://spacetimedb.com/docs/functions/reducers/), and [publishing modules](https://spacetimedb.com/docs/databases/building-publishing/).

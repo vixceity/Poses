@@ -48,6 +48,7 @@ test('three poses, ordered copies, then swap roles', () => {
   hold(g,2,2,12000);assert.equal(g.index,0); // wrong order cannot advance
   for(let i=0;i<3;i++) hold(g,2,i,14300+i*2200);
   assert.equal(g.phase,'handoff');assert.equal(g.setter,2);assert.equal(g.round,2);
+  assert.equal(g.timeoutMs,19500);
   tick(g,g.deadline);assert.equal(g.phase,'setting');
   assert.deepEqual(g.letters,[0,0]);assert.equal(g.poses.length,0);
 });
@@ -73,6 +74,14 @@ test('timeout assigns exactly one letter and preserves setter; POSES loses', () 
   const g=createGame(0);
   setThree(g);tick(g,g.deadline);
   assert.deepEqual(g.letters,[0,1]);assert.equal(g.setter,1);
+  assert.equal(g.timeoutMs,20000);
+});
+test('copy timeout decreases by half a second but never below twelve seconds', () => {
+  const g=createGame(0, .25, 12.25);
+  setThree(g);
+  for (let i = 0; i < 3; i++) hold(g, 2, i, 12000 + i * 2200);
+  assert.equal(g.timeoutMs, 12000);
+  assert.equal(g.letters[1], 0);
 });
 test('setter timeout hands the turn to the other player', () => {
   const g=createGame(0);

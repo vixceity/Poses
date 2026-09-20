@@ -9,6 +9,8 @@ export type Game = {
 };
 export const ROWS = 24; // 12 joints followed by 12 limb vectors; xyz columns.
 export const HOLD_STABILITY_TOLERANCE = 0.15;
+const COPY_TIMEOUT_STEP_MS = 500;
+const MIN_COPY_TIMEOUT_MS = 12000;
 export function validateMatrix(m: Matrix) {
   if (!Array.isArray(m) || m.length !== ROWS || m.some(r => !Array.isArray(r) ||
       r.length !== 3 || r.some(v => typeof v !== 'number' || !Number.isFinite(v) || Math.abs(v) > 20)))
@@ -89,6 +91,7 @@ export function observe(g: Game, player: number, matrix: Matrix | null, now: num
   } else {
     g.index++; clearHold(g);
     if (g.index === 3) {
+      g.timeoutMs = Math.max(MIN_COPY_TIMEOUT_MS, g.timeoutMs - COPY_TIMEOUT_STEP_MS);
       g.setter = active; g.round++; g.phase = 'handoff'; g.poses = []; g.index = 0;
       g.deadline = now + 3000; g.release = null; g.error = null;
       g.message = `Sequence complete! Player ${active}: get ready to set three new poses`;
