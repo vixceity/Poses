@@ -1,5 +1,6 @@
 """Run with python cam_multiplayer.py for cross-device room relay play."""
 import json
+import os
 import secrets
 from pathlib import Path
 
@@ -9,6 +10,18 @@ from fastapi.responses import FileResponse
 
 ROOT = Path(__file__).resolve().parent
 rooms: dict[str, dict[str, WebSocket]] = {}
+
+frontend_origins = {
+    origin.strip().rstrip('/')
+    for origin in os.getenv('POSES_FRONTEND_ORIGINS', '').split(',')
+    if origin.strip()
+}
+frontend_origins.update({
+    'http://127.0.0.1:3001',
+    'http://localhost:3001',
+    'http://127.0.0.1:8001',
+    'http://localhost:8001',
+})
 
 
 def room_code() -> str:
@@ -32,12 +45,7 @@ async def broadcast(room: str, message: dict, exclude: WebSocket | None = None) 
 app = FastAPI(title='POSES multiplayer relay')
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        'http://127.0.0.1:3001',
-        'http://localhost:3001',
-        'http://127.0.0.1:8001',
-        'http://localhost:8001',
-    ],
+    allow_origins=sorted(frontend_origins),
     allow_methods=['GET', 'POST', 'OPTIONS'],
     allow_headers=['*'],
 )
