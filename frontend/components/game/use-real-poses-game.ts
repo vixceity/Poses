@@ -158,6 +158,113 @@ export function usePosesGame() {
     setError('Camera unavailable. Each player should raise one hand after the camera reconnects.')
   }, [connected, data.camera_ready, starting])
 
+<<<<<<< Updated upstream
+=======
+  useEffect(() => {
+    if (!voiceoverEnabled) {
+      // Keep a baseline so enabling voiceover during a running game does not
+      // replay cues that belonged to earlier transitions.
+      previousVoiceState.current = data
+      return
+    }
+
+    const player = getVoiceover()
+    const previous = previousVoiceState.current
+    previousVoiceState.current = data
+    const game = data.game
+    const previousGame = previous?.game
+
+    if (!data.id || !game) {
+      player.cancelGroup(PREPARATION_GROUP)
+      return
+    }
+
+    const gameKey = `game:${data.id}`
+    const queuePosePreparation = () => player.preparePose(game.setter, {
+      dedupeKey: `${gameKey}:round:${game.round}:prepare-pose`,
+      group: PREPARATION_GROUP,
+    })
+    const queueCopyPreparation = () => player.prepareCopy(3 - game.setter, {
+      dedupeKey: `${gameKey}:round:${game.round}:prepare-copy`,
+      group: PREPARATION_GROUP,
+    })
+    const newGame = previous?.id !== data.id || !previousGame
+
+    if (newGame) {
+      player.cancelGroup(PREPARATION_GROUP)
+      const instructionKey = `poses-voiceover-instructions:${data.id}`
+      let instructionsPlayed = instructionsPlayedForNextGame.current
+      instructionsPlayedForNextGame.current = false
+      try {
+        const stored = sessionStorage.getItem(instructionKey) === '1'
+        instructionsPlayed ||= stored
+        if (!stored) sessionStorage.setItem(instructionKey, '1')
+      } catch {
+        // Session storage is optional; the queue's dedupe key still protects polling.
+      }
+      if (!instructionsPlayed) {
+        void player.gameInstructions({ dedupeKey: `${gameKey}:instructions` })
+      }
+      if (game.phase === 'setting' || game.phase === 'handoff') void queuePosePreparation()
+      else if (game.phase === 'ready') void queueCopyPreparation()
+      return
+    }
+
+    const savedBefore = previousGame.poses.length
+    const savedNow = game.poses.length
+    const stateAdvanced = previousGame.phase !== game.phase
+      || previousGame.round !== game.round
+      || previousGame.index !== game.index
+      || savedBefore !== savedNow
+      || game.letters.some((letters, index) => letters !== previousGame.letters[index])
+    if (stateAdvanced) player.cancelGroup(PREPARATION_GROUP)
+
+    if (game.round === previousGame.round && savedNow > savedBefore) {
+      for (let completed = savedBefore + 1; completed <= savedNow; completed++) {
+        void player.poseRecorded({
+          dedupeKey: `${gameKey}:round:${game.round}:recorded-pose:${completed}`,
+        })
+      }
+    }
+
+    if (previousGame.phase === 'copying') {
+      const copier = 3 - previousGame.setter
+      if (game.phase === 'copying' && game.round === previousGame.round && game.index > previousGame.index) {
+        for (let completed = previousGame.index + 1; completed <= game.index; completed++) {
+          void player.praise(copier, {
+            dedupeKey: `${gameKey}:round:${previousGame.round}:copier-pose:${completed}`,
+          })
+        }
+      } else if (game.phase === 'handoff' && game.round === previousGame.round + 1) {
+        for (let completed = previousGame.index + 1; completed <= 3; completed++) {
+          void player.praise(copier, {
+            dedupeKey: `${gameKey}:round:${previousGame.round}:copier-pose:${completed}`,
+          })
+        }
+      }
+    }
+
+    let letterIncreased = false
+    for (const playerIndex of [0, 1]) {
+      if ((game.letters[playerIndex] ?? 0) > (previousGame.letters[playerIndex] ?? 0)) {
+        letterIncreased = true
+        void player.fail(playerIndex + 1, {
+          dedupeKey: `${gameKey}:player:${playerIndex + 1}:letter:${game.letters[playerIndex]}`,
+        })
+      }
+    }
+
+    if (game.phase === 'finished' && previousGame.phase !== 'finished' && game.winner) {
+      void player.win(game.winner, { dedupeKey: `${gameKey}:winner:${game.winner}` })
+      return
+    }
+
+    if (game.phase === 'ready' && previousGame.phase !== 'ready') void queueCopyPreparation()
+    else if (game.phase === 'handoff' && previousGame.phase !== 'handoff') void queuePosePreparation()
+    else if (letterIncreased && game.phase === 'setting') void queuePosePreparation()
+  }, [data, getVoiceover, voiceoverEnabled])
+
+>>>>>>> Stashed changes
   useEffect(() => () => {
     if (releaseTimer.current) clearTimeout(releaseTimer.current)
     releaseTimer.current = null
