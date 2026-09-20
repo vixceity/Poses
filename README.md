@@ -15,19 +15,21 @@ The camera host detects both players, assigns them to lanes, normalizes their bo
 - Configurable match tolerance and copying timer
 - Automatic role swapping after successful rounds
 - POSES failure letters and win/loss state
-- Target photos, skeleton view, match replay, and reset controls
-- Optional online multiplayer prototype with WebSocket rooms
+- Target photos, skeleton view, and reset controls
+- Match replays at the end
 
 ## Technology Stack
 
-| Area | Technology |
-| --- | --- |
-| Camera service | Python, FastAPI, Uvicorn, OpenCV |
-| Pose detection | MediaPipe Pose Landmarker, NumPy |
-| Game backend | SpacetimeDB 2.x, TypeScript reducers |
-| Frontend | Next.js, React, TypeScript, Tailwind CSS |
-| Testing | Pytest, Node test runner, Playwright |
-| Communication | HTTP APIs, camera MJPEG stream, WebSockets for the multiplayer prototype |
+ Camera service : Python, FastAPI, OpenCV 
+ Pose detection : MediaPipe Pose Landmarker, NumPy 
+ Game backend : SpacetimeDB, TypeScript
+ Frontend : Next.js, React, TypeScript, Tailwind CSS
+
+## Resources Used
+
+- Github Copilot
+- Codex/ChatGPT
+- Cursor
 
 ## Installation (Windows PowerShell)
 
