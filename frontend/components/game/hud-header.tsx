@@ -10,7 +10,7 @@ export function HudHeader({ cameraStatus }: { cameraStatus: CameraStatus }) {
     <header className="anim-enter flex items-center justify-between gap-4 px-1">
       <div className="flex items-center gap-3">
         <a
-          href="/"
+          href="http://127.0.0.1:8000"
           aria-label="Return to main menu"
           title="Main menu"
           className="grid h-10 w-10 shrink-0 place-items-center rounded-md border-2 border-[var(--poses-ink)] bg-[var(--poses-yellow)] text-[var(--poses-ink)] transition-transform hover:-translate-y-0.5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--poses-cyan)]"
