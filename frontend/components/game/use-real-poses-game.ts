@@ -26,6 +26,7 @@ export function usePosesGame() {
   const version = useRef(0)
   const voiceover = useRef<OfflineVoiceover | null>(null)
   const previousVoiceState = useRef<BackendState | null>(null)
+  const instructionsPlayedForNextGame = useRef(false)
   const snapshot = fromBackend(data)
 
   const getVoiceover = useCallback(() => {
@@ -47,10 +48,14 @@ export function usePosesGame() {
     const enabled = await player.unlock()
     if (enabled) {
       player.preload()
+      instructionsPlayedForNextGame.current = !data.id || !data.game
+      void player.gameInstructions({
+        dedupeKey: `voiceover-enable:${data.id ?? 'idle'}:instructions`,
+      })
       setVoiceoverEnabled(true)
     }
     setEnablingVoiceover(false)
-  }, [enablingVoiceover, getVoiceover, voiceoverEnabled])
+  }, [data.game, data.id, enablingVoiceover, getVoiceover, voiceoverEnabled])
 
   const startGame = useCallback((fromGesture = false) => {
     if (pending.current) return
@@ -222,10 +227,12 @@ export function usePosesGame() {
     if (newGame) {
       player.cancelGroup(PREPARATION_GROUP)
       const instructionKey = `poses-voiceover-instructions:${data.id}`
-      let instructionsPlayed = false
+      let instructionsPlayed = instructionsPlayedForNextGame.current
+      instructionsPlayedForNextGame.current = false
       try {
-        instructionsPlayed = sessionStorage.getItem(instructionKey) === '1'
-        if (!instructionsPlayed) sessionStorage.setItem(instructionKey, '1')
+        const stored = sessionStorage.getItem(instructionKey) === '1'
+        instructionsPlayed ||= stored
+        if (!stored) sessionStorage.setItem(instructionKey, '1')
       } catch {
         // Session storage is optional; the queue's dedupe key still protects polling.
       }

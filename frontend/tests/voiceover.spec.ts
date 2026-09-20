@@ -55,6 +55,9 @@ test('structured game transitions emit each offline voiceover cue once', async (
   await page.goto('/')
   await page.getByRole('button', { name: 'ENABLE VOICEOVER' }).click()
   await expect(page.getByRole('button', { name: 'VOICEOVER ON' })).toBeDisabled()
+  await expect.poll(() => page.evaluate(() => window.__playedVoiceover.length)).toBe(1)
+  expect((await page.evaluate(() => window.__playedVoiceover)).at(-1))
+    .toMatch(/P[12]STARTGAMEINSTRUCTIONS\.mp3$/)
 
   state = { ...state, id: 'voice-test', game: structuredClone(initial) }
   await expect.poll(() => page.evaluate(() => window.__playedVoiceover.length)).toBe(3)
